@@ -6,7 +6,7 @@ def test_answer_contains_keyword():
 
 def test_answer_missing_keyword():
     answer = "There is no penalty for early closure"
-    assert check_answer(answer, "1%") == "PASS"
+    assert check_answer(answer, "1%") == "FAIL"
 
 def test_short_answer():
     assert is_short("The annual fee is 500 rupees") == True
