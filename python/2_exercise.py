@@ -28,6 +28,12 @@ for case in golden_dataset:
     answer = fake_answers[case_id]
 
     if expected in answer:
-        print(case)
+        print(case_id + ": PASS")
+        passed += 1
+    else:
+        print(case_id + ": FAIL")
+        failed += 1
+
+print(f"Passed: {passed}, Failed: {failed}")
 
 
