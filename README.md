@@ -13,8 +13,11 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 | [python/readjson.py](python/readjson.py) | Reading and writing JSON test case files |
 | [python/checks.py](python/checks.py) | Reusable check functions: `check_answer` (keyword PASS/FAIL) and `is_short` (under 20 words) |
 | [python/test_pytest_basics.py](python/test_pytest_basics.py) | First pytest tests for the functions in `checks.py` |
-| [JSON/testcases.json](JSON/testcases.json) | Test case data |
-| [JSON/results.json](JSON/results.json) | Results written by `readjson.py` |
+| [python/case_runner.py](python/case_runner.py) | Test runner: loads test cases and answers from JSON, checks each one, prints a summary, saves results |
+| [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
+| [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
+| [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
+| [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
 
 ## Key concepts so far
 
@@ -25,6 +28,7 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **Functions:** `def`, parameters, `return`, importing functions from another file
 - **JSON:** `json.load` to read test cases, `json.dump` to write results to a separate file
 - **pytest:** test functions must start with `test_`, `assert` checks a condition, a failed assert fails the test
+- **Data-driven tests:** `@pytest.mark.parametrize` runs one test function once per test case loaded from JSON
 
 ## Setup
 
@@ -42,6 +46,7 @@ After installing a new package, update the file from inside the venv with `pip f
 
 ```bash
 python3 python/2_exercise.py
+python3 python/case_runner.py
 ```
 
 Run the tests (from inside `python/`, so `checks` can be imported):
@@ -50,3 +55,5 @@ Run the tests (from inside `python/`, so `checks` can be imported):
 cd python
 pytest -v
 ```
+
+`test_golden_dataset[TC004]` fails on purpose: the fake answer says 2000 rupees but the expected keyword is `5000`, showing how a wrong chatbot answer gets caught.

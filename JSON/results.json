@@ -1,6 +1,22 @@
 [
     {
         "id": "TC001",
+        "category": "loans",
         "result": "PASS"
+    },
+    {
+        "id": "TC002",
+        "category": "deposits",
+        "result": "PASS"
+    },
+    {
+        "id": "TC003",
+        "category": "cards",
+        "result": "PASS"
+    },
+    {
+        "id": "TC004",
+        "category": "savings",
+        "result": "FAIL"
     }
 ]
