@@ -20,8 +20,20 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **Dictionaries:** key–value pairs, access with `dict["key"]`, add new keys
 - **Golden dataset:** a list of test case dictionaries (`id`, `question`, `expected_keyword`) used to check chatbot answers
 
+## Setup
+
+[requirements.txt](requirements.txt) records which packages the project uses, so anyone (including CI later) can install them:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+After installing a new package, update the file from inside the venv with `pip freeze > requirements.txt`.
+
 ## Running
 
 ```bash
-python3 python/2.py
+python3 python/2_exercise.py
 ```
