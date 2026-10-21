@@ -6,9 +6,12 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 
 | File | Topic |
 |------|-------|
-| [python/1.py](python/1.py) | Variables and `print` |
-| [python/2.py](python/2.py) | Lists, dictionaries, and a list of dictionaries (golden dataset) |
+| [python/variables_and_print.py.py](python/variables_and_print.py.py) | Variables and `print` |
+| [python/lists_dicts_loops_ifelse.py.py](python/lists_dicts_loops_ifelse.py.py) | Lists, dictionaries, and a list of dictionaries (golden dataset) |
 | [python/2_exercise.py](python/2_exercise.py) | Exercise: loop over a golden dataset, check fake chatbot answers for expected keywords, count PASS/FAIL |
+| [python/functions_and_json.py.py](python/functions_and_json.py.py) | Functions: checking answers and answer length |
+| [python/readjson.py](python/readjson.py) | Reading and writing JSON test case files |
+| [JSON/testcases.json](JSON/testcases.json) | Test case data |
 
 ## Key concepts so far
 
