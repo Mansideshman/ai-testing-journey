@@ -15,7 +15,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 | [python/test_pytest_basics.py](python/test_pytest_basics.py) | First pytest tests for the functions in `checks.py` |
 | [python/case_runner.py](python/case_runner.py) | Test runner: loads test cases and answers from JSON, checks each one, prints a summary, saves results |
 | [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
-| [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API |
+| [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API, with `temperature` to control randomness |
+| [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, and why AI tests must check meaning, not exact text |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -31,6 +32,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **pytest:** test functions must start with `test_`, `assert` checks a condition, a failed assert fails the test
 - **Data-driven tests:** `@pytest.mark.parametrize` runs one test function once per test case loaded from JSON
 - **LLM API calls:** a system message sets the bot's role, a user message asks the question, the reply is in `response.choices[0].message.content`
+- **Temperature:** `0` gives near-identical answers each run (good for repeatable tests); `1` changes wording, order, and sometimes meaning
+- **Testing AI output:** exact-match tests break on non-deterministic answers, so testers check meaning, not just keywords
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
