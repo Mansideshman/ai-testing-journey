@@ -1,0 +1,6 @@
+[
+    {"id": "TC001", "question": "Personal loan rate?", "expected_keyword": "10.5%", "category": "loans"},
+    {"id": "TC002", "question": "FD early closure penalty?", "expected_keyword": "1%", "category": "deposits"},
+    {"id": "TC003", "question": "Credit card annual fee?", "expected_keyword": "500", "category": "cards"},
+    {"id": "TC004", "question": "Minimum balance for savings account?", "expected_keyword": "5000", "category": "savings"}
+]

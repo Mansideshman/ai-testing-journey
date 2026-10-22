@@ -1,0 +1,1 @@
+Same question gave different wording each time. At temperature 0, answers were almost identical. At temperature 1, wording and order changed, and the meaning shifted slightly: “can’t withdraw without a penalty” became “may incur penalties”. This shows why exact-match tests don’t work for AI, and why testers must check meaning, not just keywords.
