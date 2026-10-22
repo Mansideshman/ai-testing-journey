@@ -18,6 +18,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 | [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API, with `temperature` to control randomness |
 | [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, and why AI tests must check meaning, not exact text |
 | [chatbot/read_policies.py](chatbot/read_policies.py) | Reads the bank policy files and joins them into one text (the knowledge the chatbot will answer from) |
+| [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests; type questions, `exit` to quit |
+| [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
@@ -37,6 +39,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **Temperature:** `0` gives near-identical answers each run (good for repeatable tests); `1` changes wording, order, and sometimes meaning
 - **Testing AI output:** exact-match tests break on non-deterministic answers, so testers check meaning, not just keywords
 - **Reading text files:** `file.read()` returns a whole file as one string; strings join with `+`
+- **System prompt grounding:** putting the policy text in the system prompt and telling the bot to answer ONLY from it, and to refuse when the answer isn't there
+- **Chatbot defect testing:** a safety rule can break normal behaviour (greetings); rule order in the prompt matters; re-test after every fix and re-run old tests (regression)
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -64,6 +68,7 @@ python3 python/2_exercise.py
 python3 python/case_runner.py
 cd chatbot && python3 first_llm_call.py
 python3 chatbot/read_policies.py
+cd chatbot && python3 chatbot.py   # interactive, type 'exit' to quit
 ```
 
 Run the tests (from inside `python/`, so `checks` can be imported):
