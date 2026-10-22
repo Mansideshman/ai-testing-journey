@@ -15,6 +15,7 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 | [python/test_pytest_basics.py](python/test_pytest_basics.py) | First pytest tests for the functions in `checks.py` |
 | [python/case_runner.py](python/case_runner.py) | Test runner: loads test cases and answers from JSON, checks each one, prints a summary, saves results |
 | [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
+| [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -29,6 +30,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **JSON:** `json.load` to read test cases, `json.dump` to write results to a separate file
 - **pytest:** test functions must start with `test_`, `assert` checks a condition, a failed assert fails the test
 - **Data-driven tests:** `@pytest.mark.parametrize` runs one test function once per test case loaded from JSON
+- **LLM API calls:** a system message sets the bot's role, a user message asks the question, the reply is in `response.choices[0].message.content`
+- **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
 
@@ -40,6 +43,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+For the chatbot, create `chatbot/.env` with your [Groq API key](https://console.groq.com/keys):
+
+```
+GROQ_API_KEY=your_key_here
+```
+
 After installing a new package, update the file from inside the venv with `pip freeze > requirements.txt`.
 
 ## Running
@@ -47,6 +56,7 @@ After installing a new package, update the file from inside the venv with `pip f
 ```bash
 python3 python/2_exercise.py
 python3 python/case_runner.py
+cd chatbot && python3 first_llm_call.py
 ```
 
 Run the tests (from inside `python/`, so `checks` can be imported):
