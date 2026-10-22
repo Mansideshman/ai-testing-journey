@@ -17,6 +17,8 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 | [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
 | [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API, with `temperature` to control randomness |
 | [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, and why AI tests must check meaning, not exact text |
+| [chatbot/read_policies.py](chatbot/read_policies.py) | Reads the bank policy files and joins them into one text (the knowledge the chatbot will answer from) |
+| [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -34,6 +36,7 @@ Learning Python step by step, with the goal of testing AI chatbots and LLM appli
 - **LLM API calls:** a system message sets the bot's role, a user message asks the question, the reply is in `response.choices[0].message.content`
 - **Temperature:** `0` gives near-identical answers each run (good for repeatable tests); `1` changes wording, order, and sometimes meaning
 - **Testing AI output:** exact-match tests break on non-deterministic answers, so testers check meaning, not just keywords
+- **Reading text files:** `file.read()` returns a whole file as one string; strings join with `+`
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -60,6 +63,7 @@ After installing a new package, update the file from inside the venv with `pip f
 python3 python/2_exercise.py
 python3 python/case_runner.py
 cd chatbot && python3 first_llm_call.py
+python3 chatbot/read_policies.py
 ```
 
 Run the tests (from inside `python/`, so `checks` can be imported):
