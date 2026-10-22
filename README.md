@@ -1,6 +1,8 @@
 # AI Testing Journey
 
-Learning Python step by step, with the goal of testing AI chatbots and LLM applications.
+Hands-on journey into AI testing: chatbot testing, LLM evaluation with DeepEval, RAG evaluation, safety and bias testing, and ML model validation.
+
+It starts with Python basics, then moves on to testing a real LLM chatbot.
 
 ## Structure
 
