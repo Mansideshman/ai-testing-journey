@@ -23,6 +23,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests, remembers the conversation for follow-up questions; type questions, `exit` to quit |
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
+| [chatbot-testing/test-scenarios.md](chatbot-testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -45,6 +46,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Chatbot defect testing:** a safety rule can break normal behaviour (greetings); rule order in the prompt matters; re-test after every fix and re-run old tests (regression)
 - **Conversation memory:** the model remembers nothing between calls, so every user and assistant message is kept in a `history` list and resent with each call; roles are `system` (rules), `user` (customer), `assistant` (bot replies)
 - **Conflicting rules:** prompt rules can override each other ("answer only from policies" beat conversation memory), causing inconsistent behaviour; some fixes need a product decision, not just a prompt change
+- **Test scenario design:** cover more than happy paths: conditions, calculations, exceptions, out-of-scope, unclear and misspelt questions, multi-turn, safety (prompt injection), and false premises the bot must correct
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
