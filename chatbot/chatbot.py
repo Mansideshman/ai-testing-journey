@@ -28,24 +28,27 @@ BANK POLICIES:
 {all_policies}
 """
 
-def ask_bot(question):
+def ask_bot(question,history):
+    history.append({"role":"user","content":question})
+    messages = [{"role":"system","content": SYSTEM_PROMPT}] + history
     response = client.chat.completions.create(
         model=MODEL,
         temperature=0,
-        messages=[
-            {"role":"system","content": SYSTEM_PROMPT},
-            {"role":"user","content":question}
-        ]
+        messages=messages  
     )
-    return response.choices[0].message.content
+    answer =  response.choices[0].message.content
+
+    history.append({"role":"assistant","content": answer})
+    return answer
 
 
 if __name__=="__main__":
     print("Sahyadri Bank Assistant(type 'exit' to quit)")
+    history = []
     while True:
         question = input("You: ")
         if question == "exit":
             break
-        answer = ask_bot(question)
+        answer = ask_bot(question, history)
         print("Bot:",answer)    
     
