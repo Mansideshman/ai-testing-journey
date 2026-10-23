@@ -18,9 +18,9 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [python/case_runner.py](python/case_runner.py) | Test runner: loads test cases and answers from JSON, checks each one, prints a summary, saves results |
 | [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
 | [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API, with `temperature` to control randomness |
-| [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, and why AI tests must check meaning, not exact text |
+| [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, why AI tests must check meaning, not exact text, multi-turn memory results, and a memory trap test where the bot used the customer's name and then claimed not to know it |
 | [chatbot/read_policies.py](chatbot/read_policies.py) | Reads the bank policy files and joins them into one text (the knowledge the chatbot will answer from) |
-| [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests; type questions, `exit` to quit |
+| [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests, remembers the conversation for follow-up questions; type questions, `exit` to quit |
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
@@ -43,6 +43,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Reading text files:** `file.read()` returns a whole file as one string; strings join with `+`
 - **System prompt grounding:** putting the policy text in the system prompt and telling the bot to answer ONLY from it, and to refuse when the answer isn't there
 - **Chatbot defect testing:** a safety rule can break normal behaviour (greetings); rule order in the prompt matters; re-test after every fix and re-run old tests (regression)
+- **Conversation memory:** the model remembers nothing between calls, so every user and assistant message is kept in a `history` list and resent with each call; roles are `system` (rules), `user` (customer), `assistant` (bot replies)
+- **Conflicting rules:** prompt rules can override each other ("answer only from policies" beat conversation memory), causing inconsistent behaviour; some fixes need a product decision, not just a prompt change
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
