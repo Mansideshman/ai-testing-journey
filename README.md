@@ -24,6 +24,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [chatbot-testing/test-scenarios.md](chatbot-testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
+| [chatbot-testing/Data/goldentestdata.json](chatbot-testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse` |
+| [chatbot-testing/check_dataset.py](chatbot-testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -47,6 +49,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Conversation memory:** the model remembers nothing between calls, so every user and assistant message is kept in a `history` list and resent with each call; roles are `system` (rules), `user` (customer), `assistant` (bot replies)
 - **Conflicting rules:** prompt rules can override each other ("answer only from policies" beat conversation memory), causing inconsistent behaviour; some fixes need a product decision, not just a prompt change
 - **Test scenario design:** cover more than happy paths: conditions, calculations, exceptions, out-of-scope, unclear and misspelt questions, multi-turn, safety (prompt injection), and false premises the bot must correct
+- **Test data quality:** check the dataset itself before using it: every case has all required fields, and category counts show whether coverage is balanced (counting with a dict as a tally sheet)
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -74,6 +77,7 @@ python3 python/2_exercise.py
 python3 python/case_runner.py
 cd chatbot && python3 first_llm_call.py
 python3 chatbot/read_policies.py
+python3 chatbot-testing/check_dataset.py
 cd chatbot && python3 chatbot.py   # interactive, type 'exit' to quit
 ```
 
