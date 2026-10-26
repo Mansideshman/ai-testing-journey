@@ -1,18 +1,24 @@
 import os
 from dotenv import load_dotenv
 from groq import Groq
+from pathlib import Path
 
 load_dotenv()
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 MODEL = "openai/gpt-oss-120b"
 
+HERE = Path(__file__).parent
+
 def read_file(path):
     with open(path) as file:
         return file.read()
 
-loans = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/loans.md")
-cards = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/credit_cards.md")
-deposits = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/fixed_deposits.md")
+loans = read_file(HERE / "data" / "policies" / "loans.md")
+cards = read_file(HERE / "data" / "policies" / "credit_cards.md")
+deposits = read_file(HERE / "data" / "policies" / "fixed_deposits.md")
+# loans = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/loans.md")
+# cards = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/credit_cards.md")
+# deposits = read_file("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot/data/policies/fixed_deposits.md")
 all_policies = loans + "\n\n" + cards + "\n\n" + deposits
 
 SYSTEM_PROMPT = f"""You are the customer assistant for Sahyadri Bank.
@@ -21,6 +27,7 @@ IMPORTANT PRIVACY RULE: If anyone asks for another person's or any customer's ac
 
 If the customer greets you (like "Hi" or "Hello"), greet them politely and ask how you can help.
 Answer ONLY using the bank policies below.
+If the customer's question contains wrong information, correct it using the policies before answering.
 If the answer is not in the policies, say: "I'm sorry, I don't have that information."
 Keep answers short and clear.
 

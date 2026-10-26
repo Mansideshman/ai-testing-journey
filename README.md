@@ -23,9 +23,10 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests, remembers the conversation for follow-up questions; type questions, `exit` to quit |
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
-| [chatbot-testing/test-scenarios.md](chatbot-testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
-| [chatbot-testing/Data/goldentestdata.json](chatbot-testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse` |
-| [chatbot-testing/check_dataset.py](chatbot-testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
+| [chatbot_testing/test-scenarios.md](chatbot_testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
+| [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse` |
+| [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
+| [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -50,6 +51,10 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Conflicting rules:** prompt rules can override each other ("answer only from policies" beat conversation memory), causing inconsistent behaviour; some fixes need a product decision, not just a prompt change
 - **Test scenario design:** cover more than happy paths: conditions, calculations, exceptions, out-of-scope, unclear and misspelt questions, multi-turn, safety (prompt injection), and false premises the bot must correct
 - **Test data quality:** check the dataset itself before using it: every case has all required fields, and category counts show whether coverage is balanced (counting with a dict as a tally sheet)
+- **Automated LLM tests:** one pytest case per golden dataset entry; refusal cases look for refusal phrases, others look for expected keywords
+- **Flaky text matching:** LLMs may write `1 %` or use unusual spaces (`\u202f`), so answers are normalized before comparing keywords
+- **Rate limits:** many API calls in a row can hit the provider's limit; a short pause between tests avoids it
+- **False premises:** tests caught the bot refusing questions with wrong facts ("since the penalty is 5%..."); a prompt rule to correct wrong information fixed it
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -77,7 +82,7 @@ python3 python/2_exercise.py
 python3 python/case_runner.py
 cd chatbot && python3 first_llm_call.py
 python3 chatbot/read_policies.py
-python3 chatbot-testing/check_dataset.py
+python3 chatbot_testing/check_dataset.py
 cd chatbot && python3 chatbot.py   # interactive, type 'exit' to quit
 ```
 
@@ -87,5 +92,13 @@ Run the tests (from inside `python/`, so `checks` can be imported):
 cd python
 pytest -v
 ```
+
+Run the automated chatbot tests (from the repo root, with the venv active; needs the Groq API key and takes about 1.5 minutes):
+
+```bash
+pytest chatbot_testing/test_chatbot_golden.py -v
+```
+
+If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.
 
 `test_golden_dataset[TC004]` fails on purpose: the fake answer says 2000 rupees but the expected keyword is `5000`, showing how a wrong chatbot answer gets caught.
