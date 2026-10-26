@@ -1,6 +1,14 @@
-import json
+# import json
 
-with open("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot-testing/Data/goldentestdata.json") as file:
+# with open("/home/mansideshman/Documents/MansiData/GitRepo/AITester/ai-testing-journey/chatbot-testing/Data/goldentestdata.json") as file:
+#     dataset = json.load(file)
+
+import json
+from pathlib import Path
+
+DATA_FILE = Path(__file__).parent / "Data" / "goldentestdata.json"
+
+with open(DATA_FILE) as file:
     dataset = json.load(file)
     
 print("Total test cases:",len(dataset))
@@ -23,6 +31,10 @@ for case in dataset:
     for field in required_fields:
         if field not in case:
             print("MISSING FIELD:",field,"in", case.get("id","unknown"))
+
+
+
+
 
 
 
