@@ -27,6 +27,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse` |
 | [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
+| [chatbot_testing/reports/failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) | Failed test record: two golden cases broken on purpose (TS01 expects a refusal, TS02 expects the wrong rate), the raw pytest output, and how to read a failure and decide whether the bot or the test data is wrong |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -55,6 +56,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Flaky text matching:** LLMs may write `1 %` or use unusual spaces (`\u202f`), so answers are normalized before comparing keywords
 - **Rate limits:** many API calls in a row can hit the provider's limit; a short pause between tests avoids it
 - **False premises:** tests caught the bot refusing questions with wrong facts ("since the penalty is 5%..."); a prompt rule to correct wrong information fixed it
+- **Reading test failures:** a pytest failure shows the test data, the failed `assert` line, the custom error message (expected vs actual), and the printed bot answer; then decide if the bot (defect) or the test data is wrong
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -98,6 +100,8 @@ Run the automated chatbot tests (from the repo root, with the venv active; needs
 ```bash
 pytest chatbot_testing/test_chatbot_golden.py -v
 ```
+
+Useful options: `-k TS09` runs one case, `--lf` reruns only the last failed tests, `-rf` lists failures in the summary, `-s` shows each bot answer. See [failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) for what a failed run looks like.
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.
 
