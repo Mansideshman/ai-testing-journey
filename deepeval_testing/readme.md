@@ -8,6 +8,8 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 |------|--------------|
 | [groq_judge.py](groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that sends DeepEval's scoring prompts to Groq (`openai/gpt-oss-120b`, `temperature=0`). Loads the API key from `chatbot/.env` |
 | [test_deepeval_first.py](test_deepeval_first.py) | Two `AnswerRelevancyMetric` tests: a relevant answer must score at least 0.7, and an irrelevant answer must score below 0.7 |
+| [test_relevancy_chatbot.py](test_relevancy_chatbot.py) | Runs the first 10 answerable golden dataset questions against the real chatbot (replaying `history` for multi-turn cases) and checks each answer with `AnswerRelevancyMetric` (threshold 0.7) |
+| [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
 ## How to run
 
@@ -18,7 +20,13 @@ cd deepeval_testing
 pytest test_deepeval_first.py -v -s
 ```
 
-`-s` prints the judge's score and reason.
+Test the real chatbot (calls both the chatbot and the judge, about 1.5 minutes):
+
+```bash
+pytest test_relevancy_chatbot.py -v -s --reruns 1
+```
+
+`-s` prints the judge's score and reason. `--reruns 1` retries a failed case once (from `pytest-rerunfailures`), because LLM results can be flaky.
 
 ## How the judge works
 
@@ -44,6 +52,34 @@ The judge's reason for the long answer: "the response was filled with unrelated 
 
 The judge's reason for the wrong answer: "the response directly answered the question about the home loan interest rate with no irrelevant statements, achieving perfect relevance."
 
+## Real chatbot run: relevancy of 10 golden dataset answers
+
+The first 10 answerable cases from [goldentestdata.json](../chatbot_testing/Data/goldentestdata.json), asked to the real chatbot and scored by `GroqJudge`.
+
+**Result: 9 passed, 1 failed** (TS03).
+
+| Run | TS03 score | Judge's reason |
+|-----|------------|----------------|
+| 1 | 0.67 (failed) | "the response merely restated that the product is a fixed deposit without providing the senior citizen rate for a 4-year term" |
+| 2 (rerun) | 1.00 (passed) | Bot answered "A senior citizen receives **7.75% per year** for a 4-year fixed deposit." |
+
+The same test failed and then passed. Both the chatbot's wording and the judge's scoring change between runs, so an LLM-judged test can be flaky. Retrying once (`--reruns 1`) separates flakiness from real problems: a real problem fails every time.
+
+### Bugs fixed before the first run
+
+- A wrong auto-added import (`from chatbot_testing.check_dataset import file`)
+- `with open(...)` without `as file:` (a `SyntaxError`), and the old folder name `chatbot-testing`
+- `time.leep` instead of `time.sleep`
+- `"hostory"` instead of `"history"`: this never crashed, because `.get()` quietly returned `[]`, so multi-turn cases silently lost their earlier questions
+- The `assert` was outside the test function, so it ran at import time
+
+## Answer relevancy on real chatbot answers (10 cases)
+
+- **Passed:** 9 / 10
+- **Lowest score:** TS03, 0.67. Judge's reason: "the response merely restated that the product is a fixed deposit without providing the senior citizen rate for a 4-year term, leaving the core question unanswered."
+- **Did I agree with the judge?** Not sure, and that is the lesson. The bot's answer from the failed run was not saved, so I can't check whether it really left out the rate. On the rerun, the bot gave the correct rate ("**7.75% per year** for a 4-year fixed deposit") and scored 1.00. To judge the judge, the failure message must include the bot's answer, not only the score and reason.
+- **TS06 observation:** the question "What's the rate?" is unclear. The bot asked a clarifying question: "Could you please let me know which product you're interested in: personal loan, home loan, credit card, or fixed deposit?" It scored **1.00**. Asking for clarification is the right behaviour, so I agree with the score. But the judge's reason ("the response directly answered the question") is not accurate: the bot did not answer, it asked back. A correct score can come with a wrong reason, so read the reasons, not only the numbers.
+
 ## What I learned
 
 - **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.
@@ -51,3 +87,5 @@ The judge's reason for the wrong answer: "the response directly answered the que
 - **One metric is not enough.** To catch wrong facts, use a metric that knows the truth: `FaithfulnessMetric` (checks the answer against the policy text given as `retrieval_context`) or `GEval` with an `expected_output`.
 - **Every test needs an assert.** A test that only prints a score can never fail.
 - **Small typos break LLM tests.** A leading space in the model name (`" openai/gpt-oss-120b"`) gave a 404 error, and `threashold` instead of `threshold` gave a `TypeError`.
+- **The judge is non-deterministic too.** The same correct answer can score 0.67 on one run and 1.00 on the next. Use retries, and note which tests needed one.
+- **Silent typos are the worst bugs.** A misspelt dictionary key with `.get()` gives no error, it just tests the wrong thing.
