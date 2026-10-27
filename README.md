@@ -28,6 +28,9 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
 | [chatbot_testing/reports/failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) | Failed test record: two golden cases broken on purpose (TS01 expects a refusal, TS02 expects the wrong rate), the raw pytest output, and how to read a failure and decide whether the bot or the test data is wrong |
+| [deepeval_testing/readme.md](deepeval_testing/readme.md) | DeepEval notes: how the LLM judge works, the Answer Relevancy experiment (a wrong 15% answer scored a perfect 1.00), and lessons learned |
+| [deepeval_testing/groq_judge.py](deepeval_testing/groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that scores answers through the Groq API |
+| [deepeval_testing/test_deepeval_first.py](deepeval_testing/test_deepeval_first.py) | First DeepEval tests: `AnswerRelevancyMetric` passes a relevant answer and fails an irrelevant one |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -59,11 +62,15 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Reading test failures:** a pytest failure shows the test data, the failed `assert` line, the custom error message (expected vs actual), and the printed bot answer; then decide if the bot (defect) or the test data is wrong
 - **Testing the tests:** break a case on purpose to prove the suite can catch a wrong answer
 - **Stability runs:** an LLM is non-deterministic, so run the suite several times; "all passed" can still hide defects when a case has weak checks (no keywords), so eye-check those answers
+- **LLM as a judge:** DeepEval asks a second LLM to score answers by meaning; a custom judge subclasses `DeepEvalBaseLLM`
+- **Relevancy is not correctness:** `AnswerRelevancyMetric` gave a wrong answer (15% instead of 8.5%) a perfect score and punished a correct answer full of small talk; checking facts needs a metric with the truth, like `FaithfulnessMetric`
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
 
 [requirements.txt](requirements.txt) records which packages the project uses, so anyone (including CI later) can install them:
+
+Use Python 3.9 or newer (DeepEval needs it; this project uses 3.11, the same as CI). On Ubuntu 20.04, which only has 3.8, install 3.11 with [uv](https://docs.astral.sh/uv/) and create the venv with `uv venv --python 3.11 .venv`.
 
 ```bash
 python3 -m venv .venv
@@ -104,6 +111,13 @@ pytest chatbot_testing/test_chatbot_golden.py -v
 ```
 
 Useful options: `-k TS09` runs one case, `--lf` reruns only the last failed tests, `-rf` lists failures in the summary, `-s` shows each bot answer. See [failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) for what a failed run looks like.
+
+Run the DeepEval tests (needs the Groq API key):
+
+```bash
+cd deepeval_testing
+pytest test_deepeval_first.py -v -s
+```
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.
 
