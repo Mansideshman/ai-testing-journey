@@ -73,6 +73,13 @@ The same test failed and then passed. Both the chatbot's wording and the judge's
 - `"hostory"` instead of `"history"`: this never crashed, because `.get()` quietly returned `[]`, so multi-turn cases silently lost their earlier questions
 - The `assert` was outside the test function, so it ran at import time
 
+## Answer relevancy on real chatbot answers (10 cases)
+
+- **Passed:** 9 / 10
+- **Lowest score:** TS03, 0.67. Judge's reason: "the response merely restated that the product is a fixed deposit without providing the senior citizen rate for a 4-year term, leaving the core question unanswered."
+- **Did I agree with the judge?** Not sure, and that is the lesson. The bot's answer from the failed run was not saved, so I can't check whether it really left out the rate. On the rerun, the bot gave the correct rate ("**7.75% per year** for a 4-year fixed deposit") and scored 1.00. To judge the judge, the failure message must include the bot's answer, not only the score and reason.
+- **TS06 observation:** the question "What's the rate?" is unclear. The bot asked a clarifying question: "Could you please let me know which product you're interested in: personal loan, home loan, credit card, or fixed deposit?" It scored **1.00**. Asking for clarification is the right behaviour, so I agree with the score. But the judge's reason ("the response directly answered the question") is not accurate: the bot did not answer, it asked back. A correct score can come with a wrong reason, so read the reasons, not only the numbers.
+
 ## What I learned
 
 - **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.

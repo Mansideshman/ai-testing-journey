@@ -31,7 +31,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [deepeval_testing/readme.md](deepeval_testing/readme.md) | DeepEval notes: how the LLM judge works, the Answer Relevancy experiment (a wrong 15% answer scored a perfect 1.00), and lessons learned |
 | [deepeval_testing/groq_judge.py](deepeval_testing/groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that scores answers through the Groq API |
 | [deepeval_testing/test_deepeval_first.py](deepeval_testing/test_deepeval_first.py) | First DeepEval tests: `AnswerRelevancyMetric` passes a relevant answer and fails an irrelevant one |
-| [deepeval_testing/test_relevancy_chatbot.py](deepeval_testing/test_relevancy_chatbot.py) | DeepEval on the real chatbot: the first 10 answerable golden dataset questions scored with `AnswerRelevancyMetric` (9/10 passed; TS03 was flaky and passed on rerun) |
+| [deepeval_testing/test_relevancy_chatbot.py](deepeval_testing/test_relevancy_chatbot.py) | DeepEval on the real chatbot: the first 10 answerable golden dataset questions scored with `AnswerRelevancyMetric` (9/10 passed; TS03 was flaky and passed on rerun; TS06's clarifying question scored 1.00 but with an inaccurate reason) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -66,6 +66,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **LLM as a judge:** DeepEval asks a second LLM to score answers by meaning; a custom judge subclasses `DeepEvalBaseLLM`
 - **Relevancy is not correctness:** `AnswerRelevancyMetric` gave a wrong answer (15% instead of 8.5%) a perfect score and punished a correct answer full of small talk; checking facts needs a metric with the truth, like `FaithfulnessMetric`
 - **Flaky LLM judges:** the judge's score for the same answer can change between runs (TS03: 0.67, then 1.00); `--reruns 1` from `pytest-rerunfailures` retries a failed case once
+- **Judging the judge:** a correct score can come with a wrong reason, so read the judge's reasons, and save the bot's answer in failure messages so every judgement can be checked
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
