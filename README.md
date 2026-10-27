@@ -18,7 +18,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [python/case_runner.py](python/case_runner.py) | Test runner: loads test cases and answers from JSON, checks each one, prints a summary, saves results |
 | [python/test_goldendataset.py](python/test_goldendataset.py) | Data-driven pytest: one test per golden dataset case using `@pytest.mark.parametrize` |
 | [chatbot/first_llm_call.py](chatbot/first_llm_call.py) | First real LLM call: asks a bank question through the Groq API, with `temperature` to control randomness |
-| [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, why AI tests must check meaning, not exact text, multi-turn memory results, and a memory trap test where the bot used the customer's name and then claimed not to know it |
+| [chatbot/notes.md](chatbot/notes.md) | Findings: how answers change between temperature 0 and 1, why AI tests must check meaning, not exact text, multi-turn memory results, a memory trap test where the bot used the customer's name and then claimed not to know it, testing the tests by breaking two cases on purpose, and stability results from 3 full runs of the golden suite |
 | [chatbot/read_policies.py](chatbot/read_policies.py) | Reads the bank policy files and joins them into one text (the knowledge the chatbot will answer from) |
 | [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests, remembers the conversation for follow-up questions; type questions, `exit` to quit |
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
@@ -57,6 +57,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Rate limits:** many API calls in a row can hit the provider's limit; a short pause between tests avoids it
 - **False premises:** tests caught the bot refusing questions with wrong facts ("since the penalty is 5%..."); a prompt rule to correct wrong information fixed it
 - **Reading test failures:** a pytest failure shows the test data, the failed `assert` line, the custom error message (expected vs actual), and the printed bot answer; then decide if the bot (defect) or the test data is wrong
+- **Testing the tests:** break a case on purpose to prove the suite can catch a wrong answer
+- **Stability runs:** an LLM is non-deterministic, so run the suite several times; "all passed" can still hide defects when a case has weak checks (no keywords), so eye-check those answers
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
