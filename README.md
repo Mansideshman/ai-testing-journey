@@ -32,7 +32,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [deepeval_testing/groq_judge.py](deepeval_testing/groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that scores answers through the Groq API |
 | [deepeval_testing/test_deepeval_first.py](deepeval_testing/test_deepeval_first.py) | First DeepEval tests: `AnswerRelevancyMetric` passes a relevant answer and fails an irrelevant one |
 | [deepeval_testing/test_relevancy_chatbot.py](deepeval_testing/test_relevancy_chatbot.py) | DeepEval on the real chatbot: the first 10 answerable golden dataset questions scored with `AnswerRelevancyMetric` (9/10 passed; TS03 was flaky and passed on rerun; TS06's clarifying question scored 1.00 but with an inaccurate reason) |
-| [deepeval_testing/test_correctness_chatbot.py](deepeval_testing/test_correctness_chatbot.py) | GEval correctness test on the real chatbot: compares each answer with the golden dataset's `expected_output` (10/10 passed; the judge was too lenient on TS09) and saves results to [correctness_results.jsonl](deepeval_testing/results/correctness_results.jsonl) |
+| [deepeval_testing/test_correctness_chatbot.py](deepeval_testing/test_correctness_chatbot.py) | GEval correctness test on the real chatbot: compares each answer with the golden dataset's `expected_output` (10/10 passed at first, but the judge was too lenient on TS09; after calibration TS09 correctly fails) and saves results to [correctness_results.jsonl](deepeval_testing/results/correctness_results.jsonl) |
+| [deepeval_testing/calibrate_judge.py](deepeval_testing/calibrate_judge.py) | Judge calibration: compares the GEval judge's pass/fail verdicts with my own labels in [human_labels.json](deepeval_testing/human_labels.json) (90% agreement, then 100% after making TS09's expected output precise) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -69,6 +70,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Flaky LLM judges:** the judge's score for the same answer can change between runs (TS03: 0.67, then 1.00); `--reruns 1` from `pytest-rerunfailures` retries a failed case once
 - **Judging the judge:** a correct score can come with a wrong reason, so read the judge's reasons, and save the bot's answer in failure messages so every judgement can be checked
 - **GEval correctness:** write the grading rules in plain English and compare each answer with an `expected_output`; the wrong 15% answer that Answer Relevancy scored 1.00 got 0.0 from GEval; a score is only as strict as the criteria (TS09 passed with "1% of the interest earned" when the policy says "1% on the interest rate")
+- **Judge calibration:** label answers yourself without looking at the judge's scores, then measure agreement; a precise `expected_output` fixed a disagreement that a stricter rubric could not
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -124,6 +126,7 @@ cd deepeval_testing
 pytest test_deepeval_first.py -v -s
 pytest test_relevancy_chatbot.py -v -s --reruns 1   # real chatbot, about 1.5 minutes
 pytest test_correctness_chatbot.py -v -s             # GEval facts check, about 1 minute
+python calibrate_judge.py                            # compare the judge with human labels
 ```
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.

@@ -27,6 +27,7 @@ correctness = GEval(
     criteria=(
         "Check whether the actual output gives the same facts as the expected output. "
         "Numbers, rates and amounts must match exactly. "
+        "What the number applies to (rate, amount, interest) must also match. "
         "Different wording is fine if the meaning is the same. "
         "If the expected output describes a behaviour, check that the actual output shows that behaviour."
     ),
