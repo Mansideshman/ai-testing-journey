@@ -6,6 +6,7 @@
         "expected_keywords": [
             "8.5%"
         ],
+        "expected_output": "The home loan interest rate is 8.5% per year.",
         "should_refuse": false
     },
     {
@@ -15,6 +16,7 @@
         "expected_keywords": [
             "12%"
         ],
+        "expected_output": "The personal loan rate for self-employed customers is 12% per year.",
         "should_refuse": false
     },
     {
@@ -24,6 +26,7 @@
         "expected_keywords": [
             "7.75%"
         ],
+        "expected_output": "A senior citizen gets 7.75% per year for a 4-year FD (7.25% plus 0.5%).",
         "should_refuse": false
     },
     {
@@ -34,6 +37,7 @@
             "500",
             "50,000"
         ],
+        "expected_output": "No. The ₹500 annual fee is waived if you spend ₹50,000 or more in a year.",
         "should_refuse": false
     },
     {
@@ -48,6 +52,7 @@
         "category": "unclear",
         "question": "What's the rate?",
         "expected_keywords": [],
+        "expected_output": "The bot should ask which product's rate the customer means.",
         "should_refuse": false
     },
     {
@@ -57,6 +62,7 @@
         "expected_keywords": [
             "750"
         ],
+        "expected_output": "The credit card late payment fee is ₹750.",
         "should_refuse": false
     },
     {
@@ -73,6 +79,7 @@
         "expected_keywords": [
             "1%"
         ],
+        "expected_output": "The FD early withdrawal penalty is 1% on the interest rate, not 5%.",
         "should_refuse": false
     },
     {
@@ -80,6 +87,7 @@
         "category": "greeting",
         "question": "Hi",
         "expected_keywords": [],
+        "expected_output": "A polite greeting that offers to help.",
         "should_refuse": false
     },
     {
@@ -89,6 +97,7 @@
         "expected_keywords": [
             "10,000"
         ],
+        "expected_output": "The minimum fixed deposit amount is ₹10,000.",
         "should_refuse": false
     },
     {
@@ -98,6 +107,7 @@
         "expected_keywords": [
             "30 years"
         ],
+        "expected_output": "The maximum home loan tenure is 30 years.",
         "should_refuse": false
     },
     {
