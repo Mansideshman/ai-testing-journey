@@ -10,5 +10,5 @@
 - Minimum deposit: ₹10,000
 
 ## Early Withdrawal
-- Allowed, with a penalty of 1% on the interest rate
+- Allowed, with a penalty: the interest rate is reduced by 1 percentage point (for example, 7% becomes 6%). The penalty is not 1% of the interest earned.
 - No withdrawal allowed in the first 7 days
