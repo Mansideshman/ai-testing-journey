@@ -11,6 +11,8 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [test_relevancy_chatbot.py](test_relevancy_chatbot.py) | Runs the first 10 answerable golden dataset questions against the real chatbot (replaying `history` for multi-turn cases) and checks each answer with `AnswerRelevancyMetric` (threshold 0.7) |
 | [test_correctness_chatbot.py](test_correctness_chatbot.py) | GEval "Correctness" test: asks the real chatbot every golden dataset case that has an `expected_output` and checks that the facts match. Saves each result to `results/correctness_results.jsonl` |
 | [results/correctness_results.jsonl](results/correctness_results.jsonl) | Saved results of the correctness run: one JSON record per line with the question, answer, expected output, score and the judge's reason |
+| [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
+| [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
 ## How to run
@@ -130,6 +132,26 @@ These are different amounts of money, but the judge gave 1.0 ("the meaning is eq
 - `.json1` instead of `.jsonl` (JSON Lines: one JSON record per line)
 - `paraterize` instead of `parametrize`
 
+## Judge calibration
+
+An AI judge's scores can't be trusted until they are checked against a human. I labelled the 10 correctness answers myself as pass or fail, without looking at the judge's scores, and compared them with [calibrate_judge.py](calibrate_judge.py).
+
+| Step | What changed | Agreement |
+|------|--------------|-----------|
+| 1 | Random human labels, to test that the script catches disagreements | 80% (8 / 10) |
+| 2 | Human labels checked against the policy files | 90% (9 / 10) |
+| 3 | Stricter rubric line added to the GEval criteria | 90% (9 / 10) |
+| 4 | Precise `expected_output` for TS09 | **100% (10 / 10)** |
+
+- **Human-labelled 10 answers** without looking at the judge's scores ([human_labels.json](human_labels.json)).
+- **Agreement rate:** 90% (9 out of 10) at first, 100% (10 out of 10) after the fix. The 80% in step 1 came from random labels, used only to prove the script works.
+- **Disagreements:** TS09, and the human was right. The bot said the penalty is "1% **of the interest earned**". The policy says "1% **on the interest rate**", which means the FD rate drops by 1 percentage point (for example, 7% becomes 6%). These are different amounts of money, but the judge gave 1.0 because the number 1% matched.
+- **Change made to the rubric:**
+  1. Added "What the number applies to (rate, amount, interest) must also match" to the criteria. **This did not help.** TS09 still scored 1.0, and the judge explained the gap away: "1% of the interest (i.e., 1% on the interest rate)".
+  2. Made TS09's `expected_output` precise: "The FD early withdrawal penalty is 1%, not 5%. It lowers the FD interest rate by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned." **This worked.** TS09 now scores 0.2 and fails, with the reason "incorrectly states that the penalty is 1% of the interest earned".
+- **Root cause:** the policy wording "penalty of 1% on the interest rate" in [fixed_deposits.md](../chatbot/data/policies/fixed_deposits.md) is ambiguous. Both the bot and the judge read it the way a customer might. This is a defect in the policy text, not only in the bot.
+- **Lesson:** an AI judge must be checked against human judgement before its scores can be trusted. All 10 tests passed while one answer could mislead a customer, and only human review found it. A judge is only as precise as the reference it compares against: a clear expected output worked where a stricter rubric did not.
+
 ## What I learned
 
 - **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.
@@ -142,3 +164,5 @@ These are different amounts of money, but the judge gave 1.0 ("the meaning is eq
 - **Relevancy and correctness answer different questions.** Relevancy asks "is it on topic?", correctness asks "are the facts right?". A real suite needs both.
 - **A passing score is only as strict as the criteria.** TS09 passed with a misleading answer because the criteria only checked that numbers match, not what they apply to.
 - **Save every result.** Writing each answer, score and reason to a JSON Lines file means every judgement can be checked later.
+- **Calibrate the judge before trusting it.** Agreement with a human is the judge's own test score.
+- **Fix the reference before the rubric.** A vague expected output let the judge explain a wrong answer away; a precise one stopped it.

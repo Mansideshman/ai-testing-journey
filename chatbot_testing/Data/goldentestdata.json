@@ -79,7 +79,7 @@
         "expected_keywords": [
             "1%"
         ],
-        "expected_output": "The FD early withdrawal penalty is 1% on the interest rate, not 5%.",
+        "expected_output": "The FD early withdrawal penalty is 1%, not 5%. It lowers the FD interest rate by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned.",
         "should_refuse": false
     },
     {
