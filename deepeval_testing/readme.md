@@ -100,6 +100,19 @@ The last sentence is for TS06 and TS10, where the expected output describes a be
 
 **Result: 10 / 10 passed.** Nine cases scored 1.0. TS03 scored 0.9 because the bot left out the breakdown "(7.25% plus 0.5%)".
 
+### The wrong 15% answer: Relevancy vs GEval
+
+The same wrong answer from the relevancy experiment, scored with this `Correctness` metric (expected output: "The home loan interest rate is 8.5% per year."):
+
+| Answer | Answer Relevancy | GEval Correctness |
+|--------|------------------|-------------------|
+| "The home loan interest rate is **15%** per year." (wrong) | **1.00** (passed) | **0.0** (failed) |
+| "The home loan interest rate is **8.5%** per year." (correct) | 1.00 (passed) | 1.0 (passed) |
+
+The judge's reason for the wrong answer: "The Actual Output states a home loan interest rate of 15%, which does not match the Expected Output of 8.5%; the factual detail is incorrect, so the response fails the evaluation."
+
+Answer Relevancy only sees the question and the answer, so it can't know 15% is wrong. GEval also sees the `expected_output`, and the criteria say numbers must match exactly. A metric can only catch wrong facts when it is given the right facts.
+
 ### Finding: the judge was too lenient on TS09
 
 | | Wording | Meaning |
