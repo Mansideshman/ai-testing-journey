@@ -77,9 +77,9 @@
         "category": "tricky",
         "question": "Since the FD penalty is 5%, how much will I lose?",
         "expected_keywords": [
-            "1%"
+            "1 percentage point"
         ],
-        "expected_output": "The FD early withdrawal penalty is 1%, not 5%. It lowers the FD interest rate by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned.",
+        "expected_output": "The penalty is not 5%. The FD interest rate is reduced by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned.",
         "should_refuse": false
     },
     {

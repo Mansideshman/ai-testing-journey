@@ -132,6 +132,25 @@ These are different amounts of money, but the judge gave 1.0 ("the meaning is eq
 - `.json1` instead of `.jsonl` (JSON Lines: one JSON record per line)
 - `paraterize` instead of `parametrize`
 
+## What I learned
+
+- **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.
+- **Extra chatter is punished.** The metric splits the answer into statements and counts how many address the question. A correct answer buried in small talk scored only 0.17.
+- **One metric is not enough.** To catch wrong facts, use a metric that knows the truth: `FaithfulnessMetric` (checks the answer against the policy text given as `retrieval_context`) or `GEval` with an `expected_output`.
+- **Every test needs an assert.** A test that only prints a score can never fail.
+- **Small typos break LLM tests.** A leading space in the model name (`" openai/gpt-oss-120b"`) gave a 404 error, and `threashold` instead of `threshold` gave a `TypeError`.
+- **The judge is non-deterministic too.** The same correct answer can score 0.67 on one run and 1.00 on the next. Use retries, and note which tests needed one.
+- **Silent typos are the worst bugs.** A misspelt dictionary key with `.get()` gives no error, it just tests the wrong thing.
+- **Relevancy and correctness answer different questions.** Relevancy asks "is it on topic?", correctness asks "are the facts right?". A real suite needs both.
+- **A passing score is only as strict as the criteria.** TS09 passed with a misleading answer because the criteria only checked that numbers match, not what they apply to.
+- **Save every result.** Writing each answer, score and reason to a JSON Lines file means every judgement can be checked later.
+- **Calibrate the judge before trusting it.** Agreement with a human is the judge's own test score.
+- **Fix the reference before the rubric.** A vague expected output let the judge explain a wrong answer away; a precise one stopped it.
+- **Fix defects at the source.** The misleading TS09 answer came from ambiguous policy wording, so the real fix was the policy, not the test.
+- **When the product changes, the tests must change too.** After the policy fix, the correct answer failed the old keyword (`1%`) and the old expected output, and the human label went out of date.
+- **A judge can be too strict as well as too lenient.** GEval invented a "no-extra-facts rule" and failed a correct answer for a helpful follow-up question. Test a criteria change on both a right and a wrong answer.
+
+
 ## Judge calibration
 
 An AI judge's scores can't be trusted until they are checked against a human. I labelled the 10 correctness answers myself as pass or fail, without looking at the judge's scores, and compared them with [calibrate_judge.py](calibrate_judge.py).
@@ -152,17 +171,31 @@ An AI judge's scores can't be trusted until they are checked against a human. I 
 - **Root cause:** the policy wording "penalty of 1% on the interest rate" in [fixed_deposits.md](../chatbot/data/policies/fixed_deposits.md) is ambiguous. Both the bot and the judge read it the way a customer might. This is a defect in the policy text, not only in the bot.
 - **Lesson:** an AI judge must be checked against human judgement before its scores can be trusted. All 10 tests passed while one answer could mislead a customer, and only human review found it. A judge is only as precise as the reference it compares against: a clear expected output worked where a stricter rubric did not.
 
-## What I learned
+## Policy fix: TS09 before and after
 
-- **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.
-- **Extra chatter is punished.** The metric splits the answer into statements and counts how many address the question. A correct answer buried in small talk scored only 0.17.
-- **One metric is not enough.** To catch wrong facts, use a metric that knows the truth: `FaithfulnessMetric` (checks the answer against the policy text given as `retrieval_context`) or `GEval` with an `expected_output`.
-- **Every test needs an assert.** A test that only prints a score can never fail.
-- **Small typos break LLM tests.** A leading space in the model name (`" openai/gpt-oss-120b"`) gave a 404 error, and `threashold` instead of `threshold` gave a `TypeError`.
-- **The judge is non-deterministic too.** The same correct answer can score 0.67 on one run and 1.00 on the next. Use retries, and note which tests needed one.
-- **Silent typos are the worst bugs.** A misspelt dictionary key with `.get()` gives no error, it just tests the wrong thing.
-- **Relevancy and correctness answer different questions.** Relevancy asks "is it on topic?", correctness asks "are the facts right?". A real suite needs both.
-- **A passing score is only as strict as the criteria.** TS09 passed with a misleading answer because the criteria only checked that numbers match, not what they apply to.
-- **Save every result.** Writing each answer, score and reason to a JSON Lines file means every judgement can be checked later.
-- **Calibrate the judge before trusting it.** Agreement with a human is the judge's own test score.
-- **Fix the reference before the rubric.** A vague expected output let the judge explain a wrong answer away; a precise one stopped it.
+Calibration showed the real root cause was the policy text, so the defect was fixed there.
+
+**Policy change** in [fixed_deposits.md](../chatbot/data/policies/fixed_deposits.md):
+
+```diff
+- Allowed, with a penalty of 1% on the interest rate
++ Allowed, with a penalty: the interest rate is reduced by 1 percentage point (for example, 7% becomes 6%). The penalty is not 1% of the interest earned.
+```
+
+| | Before | After |
+|---|---|---|
+| Bot's TS09 answer | "1 % **of the interest earned**, not 5 %" (misleading) | "the interest rate is simply reduced by 1 percentage point (e.g., a 7 % rate becomes 6 %)" (correct) |
+| Golden keyword test | passed with `1%` | failed with `1%`, passed after updating the keyword to `1 percentage point` |
+| GEval correctness | 1.0 with the vague expected output, 0.2 with the precise one | 0.3 (failed a correct answer), then **0.8** after the criteria fix |
+| Judge calibration | 90%, then 100% | 100%, with TS09 relabelled `pass` |
+
+**Updating the tests after the fix:**
+
+1. **Golden dataset:** TS09's keyword changed from `1%` to `1 percentage point`, and the expected output now states the meaning: "The penalty is not 5%. The FD interest rate is reduced by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned."
+2. **GEval was now too strict.** The correct answer scored 0.3 because it didn't repeat "not 1% of the interest earned", and because the bot asked for the deposit amount (the judge called this a "no-extra-facts rule", which the criteria never contained). Two lines were added to the criteria:
+   - "If the expected output says what something is not, the actual output must not contradict it, but it does not need to repeat it."
+   - "Extra helpful details or follow-up questions are fine if they do not contradict the expected facts."
+3. **Checked both ways before applying:** with the new criteria, the correct answer scored 0.8 and 0.7, and the old wrong answer still scored 0.0 both times. The judge got fairer without becoming lenient again.
+4. **Human label updated:** TS09 changed from `fail` to `pass`, because the answer is now correct. The old label described the old answer.
+
+**Result:** all 10 correctness cases pass, TS09 scores 0.8, and judge calibration is 100% (10 / 10). TS09's score is close to the 0.7 pass mark, so it may fail now and then on a rerun.
