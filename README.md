@@ -68,7 +68,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Relevancy is not correctness:** `AnswerRelevancyMetric` gave a wrong answer (15% instead of 8.5%) a perfect score and punished a correct answer full of small talk; checking facts needs a metric with the truth, like `FaithfulnessMetric`
 - **Flaky LLM judges:** the judge's score for the same answer can change between runs (TS03: 0.67, then 1.00); `--reruns 1` from `pytest-rerunfailures` retries a failed case once
 - **Judging the judge:** a correct score can come with a wrong reason, so read the judge's reasons, and save the bot's answer in failure messages so every judgement can be checked
-- **GEval correctness:** write the grading rules in plain English and compare each answer with an `expected_output`; a score is only as strict as the criteria (TS09 passed with "1% of the interest earned" when the policy says "1% on the interest rate")
+- **GEval correctness:** write the grading rules in plain English and compare each answer with an `expected_output`; the wrong 15% answer that Answer Relevancy scored 1.00 got 0.0 from GEval; a score is only as strict as the criteria (TS09 passed with "1% of the interest earned" when the policy says "1% on the interest rate")
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
