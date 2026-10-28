@@ -24,7 +24,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [chatbot_testing/test-scenarios.md](chatbot_testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
-| [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse` |
+| [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse`, and an `expected_output` for 10 cases (used by GEval) |
 | [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
 | [chatbot_testing/reports/failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) | Failed test record: two golden cases broken on purpose (TS01 expects a refusal, TS02 expects the wrong rate), the raw pytest output, and how to read a failure and decide whether the bot or the test data is wrong |
@@ -32,6 +32,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [deepeval_testing/groq_judge.py](deepeval_testing/groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that scores answers through the Groq API |
 | [deepeval_testing/test_deepeval_first.py](deepeval_testing/test_deepeval_first.py) | First DeepEval tests: `AnswerRelevancyMetric` passes a relevant answer and fails an irrelevant one |
 | [deepeval_testing/test_relevancy_chatbot.py](deepeval_testing/test_relevancy_chatbot.py) | DeepEval on the real chatbot: the first 10 answerable golden dataset questions scored with `AnswerRelevancyMetric` (9/10 passed; TS03 was flaky and passed on rerun; TS06's clarifying question scored 1.00 but with an inaccurate reason) |
+| [deepeval_testing/test_correctness_chatbot.py](deepeval_testing/test_correctness_chatbot.py) | GEval correctness test on the real chatbot: compares each answer with the golden dataset's `expected_output` (10/10 passed; the judge was too lenient on TS09) and saves results to [correctness_results.jsonl](deepeval_testing/results/correctness_results.jsonl) |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -67,6 +68,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Relevancy is not correctness:** `AnswerRelevancyMetric` gave a wrong answer (15% instead of 8.5%) a perfect score and punished a correct answer full of small talk; checking facts needs a metric with the truth, like `FaithfulnessMetric`
 - **Flaky LLM judges:** the judge's score for the same answer can change between runs (TS03: 0.67, then 1.00); `--reruns 1` from `pytest-rerunfailures` retries a failed case once
 - **Judging the judge:** a correct score can come with a wrong reason, so read the judge's reasons, and save the bot's answer in failure messages so every judgement can be checked
+- **GEval correctness:** write the grading rules in plain English and compare each answer with an `expected_output`; a score is only as strict as the criteria (TS09 passed with "1% of the interest earned" when the policy says "1% on the interest rate")
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -121,6 +123,7 @@ Run the DeepEval tests (needs the Groq API key):
 cd deepeval_testing
 pytest test_deepeval_first.py -v -s
 pytest test_relevancy_chatbot.py -v -s --reruns 1   # real chatbot, about 1.5 minutes
+pytest test_correctness_chatbot.py -v -s             # GEval facts check, about 1 minute
 ```
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.

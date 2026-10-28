@@ -9,6 +9,8 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [groq_judge.py](groq_judge.py) | `GroqJudge`: a custom DeepEval judge model that sends DeepEval's scoring prompts to Groq (`openai/gpt-oss-120b`, `temperature=0`). Loads the API key from `chatbot/.env` |
 | [test_deepeval_first.py](test_deepeval_first.py) | Two `AnswerRelevancyMetric` tests: a relevant answer must score at least 0.7, and an irrelevant answer must score below 0.7 |
 | [test_relevancy_chatbot.py](test_relevancy_chatbot.py) | Runs the first 10 answerable golden dataset questions against the real chatbot (replaying `history` for multi-turn cases) and checks each answer with `AnswerRelevancyMetric` (threshold 0.7) |
+| [test_correctness_chatbot.py](test_correctness_chatbot.py) | GEval "Correctness" test: asks the real chatbot every golden dataset case that has an `expected_output` and checks that the facts match. Saves each result to `results/correctness_results.jsonl` |
+| [results/correctness_results.jsonl](results/correctness_results.jsonl) | Saved results of the correctness run: one JSON record per line with the question, answer, expected output, score and the judge's reason |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
 ## How to run
@@ -24,6 +26,12 @@ Test the real chatbot (calls both the chatbot and the judge, about 1.5 minutes):
 
 ```bash
 pytest test_relevancy_chatbot.py -v -s --reruns 1
+```
+
+Check the facts in real chatbot answers with GEval:
+
+```bash
+pytest test_correctness_chatbot.py -v -s
 ```
 
 `-s` prints the judge's score and reason. `--reruns 1` retries a failed case once (from `pytest-rerunfailures`), because LLM results can be flaky.
@@ -80,6 +88,35 @@ The same test failed and then passed. Both the chatbot's wording and the judge's
 - **Did I agree with the judge?** Not sure, and that is the lesson. The bot's answer from the failed run was not saved, so I can't check whether it really left out the rate. On the rerun, the bot gave the correct rate ("**7.75% per year** for a 4-year fixed deposit") and scored 1.00. To judge the judge, the failure message must include the bot's answer, not only the score and reason.
 - **TS06 observation:** the question "What's the rate?" is unclear. The bot asked a clarifying question: "Could you please let me know which product you're interested in: personal loan, home loan, credit card, or fixed deposit?" It scored **1.00**. Asking for clarification is the right behaviour, so I agree with the score. But the judge's reason ("the response directly answered the question") is not accurate: the bot did not answer, it asked back. A correct score can come with a wrong reason, so read the reasons, not only the numbers.
 
+## Correctness with GEval (10 cases)
+
+Answer Relevancy gave a wrong answer a perfect score, so this test checks the facts. `GEval` is a metric where you write the grading rules (the criteria) in plain English, and the judge scores the answer against them. Each case compares the bot's answer with an `expected_output` added to [goldentestdata.json](../chatbot_testing/Data/goldentestdata.json) (TS01 to TS04, TS06, TS07, TS09 to TS12).
+
+The criteria:
+
+> Check whether the actual output gives the same facts as the expected output. Numbers, rates and amounts must match exactly. Different wording is fine if the meaning is the same. If the expected output describes a behaviour, check that the actual output shows that behaviour.
+
+The last sentence is for TS06 and TS10, where the expected output describes a behaviour ("should ask which product's rate the customer means", "a polite greeting that offers to help") instead of giving an answer.
+
+**Result: 10 / 10 passed.** Nine cases scored 1.0. TS03 scored 0.9 because the bot left out the breakdown "(7.25% plus 0.5%)".
+
+### Finding: the judge was too lenient on TS09
+
+| | Wording | Meaning |
+|---|---|---|
+| Policy | "penalty of 1% **on the interest rate**" | the FD rate drops by 1% |
+| Bot | "1 % **of the interest earned**" | you lose 1% of your interest |
+
+These are different amounts of money, but the judge gave 1.0 ("the meaning is equivalent"). The number matched, but what it applies to did not. A stricter criteria line would be: "What the number applies to (rate, amount, interest) must also match."
+
+### Bugs fixed before the first run
+
+- The same wrong auto-added import as before (`from chatbot_testing import file`)
+- `with open(...)` without `as file:`, and the old folder name `chatbot-testing`
+- `LLMTestCaseParams.input` no longer exists in DeepEval 4.3.1: the names are upper case and the class is now `SingleTurnParams` (`SingleTurnParams.INPUT`)
+- `.json1` instead of `.jsonl` (JSON Lines: one JSON record per line)
+- `paraterize` instead of `parametrize`
+
 ## What I learned
 
 - **Relevancy is not correctness.** Answer Relevancy only checks whether the answer stays on topic. A wrong answer (15% instead of 8.5%) got a perfect 1.00. For a bank chatbot, that is a dangerous gap.
@@ -89,3 +126,6 @@ The same test failed and then passed. Both the chatbot's wording and the judge's
 - **Small typos break LLM tests.** A leading space in the model name (`" openai/gpt-oss-120b"`) gave a 404 error, and `threashold` instead of `threshold` gave a `TypeError`.
 - **The judge is non-deterministic too.** The same correct answer can score 0.67 on one run and 1.00 on the next. Use retries, and note which tests needed one.
 - **Silent typos are the worst bugs.** A misspelt dictionary key with `.get()` gives no error, it just tests the wrong thing.
+- **Relevancy and correctness answer different questions.** Relevancy asks "is it on topic?", correctness asks "are the facts right?". A real suite needs both.
+- **A passing score is only as strict as the criteria.** TS09 passed with a misleading answer because the criteria only checked that numbers match, not what they apply to.
+- **Save every result.** Writing each answer, score and reason to a JSON Lines file means every judgement can be checked later.
