@@ -26,7 +26,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/RAGBot_notes.md](chatbot/RAGBot_notes.md) | RAG retrieval investigation: 14 golden questions, 12 correct; both failures (TS03, TS19) came from the search, not the LLM ("FD" never matches "Fixed Deposit", plurals don't match, ties favour loan sections) |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [chatbot_testing/test-scenarios.md](chatbot_testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
-| [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse`, and an `expected_output` for 10 cases (used by GEval) |
+| [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse`, and an `expected_output` for 23 answerable cases (used by GEval and the RAG tests) |
 | [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
 | [chatbot_testing/reports/failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) | Failed test record: two golden cases broken on purpose (TS01 expects a refusal, TS02 expects the wrong rate), the raw pytest output, and how to read a failure and decide whether the bot or the test data is wrong |
@@ -36,6 +36,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [deepeval_testing/test_relevancy_chatbot.py](deepeval_testing/test_relevancy_chatbot.py) | DeepEval on the real chatbot: the first 10 answerable golden dataset questions scored with `AnswerRelevancyMetric` (9/10 passed; TS03 was flaky and passed on rerun; TS06's clarifying question scored 1.00 but with an inaccurate reason) |
 | [deepeval_testing/test_correctness_chatbot.py](deepeval_testing/test_correctness_chatbot.py) | GEval correctness test on the real chatbot: compares each answer with the golden dataset's `expected_output` (10/10 passed at first, but the judge was too lenient on TS09; after calibration and the policy fix, TS09 passes with the correct answer) and saves results to [correctness_results.jsonl](deepeval_testing/results/correctness_results.jsonl) |
 | [deepeval_testing/calibrate_judge.py](deepeval_testing/calibrate_judge.py) | Judge calibration: compares the GEval judge's pass/fail verdicts with my own labels in [human_labels.json](deepeval_testing/human_labels.json) (90% agreement, then 100% after making TS09's expected output precise) |
+| [deepeval_testing/test_rag_chatbot.py](deepeval_testing/test_rag_chatbot.py) | RAG chatbot test with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?): 12/23 passed; the real failures were FD retrieval (TS03, TS09, TS19), an unhelpful answer despite good retrieval (TS30) and a missing clarifying question (TS06) |
+| [deepeval_testing/rag_diagnosis.py](deepeval_testing/rag_diagnosis.py) | Checks the recall vs faithfulness diagnosis table with one case per corner: 2 of 4 matched, because Faithfulness only catches claims that contradict the retrieved text |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -75,6 +77,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **Judge calibration:** label answers yourself without looking at the judge's scores, then measure agreement; a precise `expected_output` fixed a disagreement that a stricter rubric could not
 - **Fix defects at the source:** the misleading FD penalty answer came from ambiguous policy wording; after fixing the policy, the keyword, expected output, GEval criteria and human label all had to be updated to match the corrected answer
 - **RAG (Retrieval-Augmented Generation):** search the documents first and send only the matching parts to the LLM; a wrong answer can come from the search, so always log what was retrieved
+- **Recall vs faithfulness:** low contextual recall means the search failed; faithfulness only catches claims that contradict the retrieved text, so a made-up answer about a topic the retrieved text doesn't cover still scores 1.0, and refusals get random scores
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -132,6 +135,8 @@ pytest test_deepeval_first.py -v -s
 pytest test_relevancy_chatbot.py -v -s --reruns 1   # real chatbot, about 1.5 minutes
 pytest test_correctness_chatbot.py -v -s             # GEval facts check, about 1 minute
 python calibrate_judge.py                            # compare the judge with human labels
+pytest test_rag_chatbot.py -v -s                     # RAG bot: recall and faithfulness, about 10 minutes
+python rag_diagnosis.py                              # one case per corner of the diagnosis table
 ```
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.

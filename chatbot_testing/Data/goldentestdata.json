@@ -117,6 +117,7 @@
         "expected_keywords": [
             "10.5%"
         ],
+        "expected_output": "The personal loan interest rate for salaried customers is 10.5% per year.",
         "should_refuse": false
     },
     {
@@ -126,6 +127,7 @@
         "expected_keywords": [
             "21"
         ],
+        "expected_output": "No. The minimum age for a credit card is 21 years, so a 20-year-old is not eligible yet.",
         "should_refuse": false
     },
     {
@@ -135,6 +137,7 @@
         "expected_keywords": [
             "10,000"
         ],
+        "expected_output": "The processing fee is 1% of the loan amount, so for ₹10,00,000 it is ₹10,000.",
         "should_refuse": false
     },
     {
@@ -144,6 +147,7 @@
         "expected_keywords": [
             "100"
         ],
+        "expected_output": "The cash withdrawal fee is 2.5% of the amount, so for ₹4,000 it is ₹100.",
         "should_refuse": false
     },
     {
@@ -153,6 +157,7 @@
         "expected_keywords": [
             "10,00,000"
         ],
+        "expected_output": "The down payment must be at least 20% of the property value, so for a ₹50,00,000 home it is at least ₹10,00,000.",
         "should_refuse": false
     },
     {
@@ -162,6 +167,7 @@
         "expected_keywords": [
             "400"
         ],
+        "expected_output": "The late EMI penalty is 2% of the EMI amount per month of delay, so for one month late on a ₹20,000 EMI it is ₹400.",
         "should_refuse": false
     },
     {
@@ -171,6 +177,7 @@
         "expected_keywords": [
             "7 days"
         ],
+        "expected_output": "No. Withdrawal is not allowed in the first 7 days of a fixed deposit.",
         "should_refuse": false
     },
     {
@@ -180,6 +187,7 @@
         "expected_keywords": [
             "waived"
         ],
+        "expected_output": "No. The ₹500 annual fee is waived because you spent ₹50,000 or more in the year.",
         "should_refuse": false
     },
     {
@@ -221,6 +229,7 @@
         "expected_keywords": [
             "30 years"
         ],
+        "expected_output": "The maximum home loan tenure is 30 years.",
         "should_refuse": false
     },
     {
@@ -233,6 +242,7 @@
         "expected_keywords": [
             "25,000"
         ],
+        "expected_output": "No. The minimum monthly income for a personal loan is ₹25,000, so an income of ₹22,000 is not eligible.",
         "should_refuse": false
     },
     {
@@ -242,6 +252,7 @@
         "expected_keywords": [
             "500"
         ],
+        "expected_output": "The credit card annual fee is ₹500, and it is waived if you spend ₹50,000 or more in a year.",
         "should_refuse": false
     },
     {
@@ -251,6 +262,7 @@
         "expected_keywords": [
             "10,000"
         ],
+        "expected_output": "The minimum fixed deposit amount is ₹10,000.",
         "should_refuse": false
     },
     {
@@ -267,6 +279,7 @@
         "expected_keywords": [
             "750"
         ],
+        "expected_output": "The late payment fee is ₹750, not ₹1,000. The policies do not say whether it can be paid in parts, so the bot should not promise that.",
         "should_refuse": false
     }
 ]
