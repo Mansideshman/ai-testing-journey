@@ -22,6 +22,8 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/read_policies.py](chatbot/read_policies.py) | Reads the bank policy files and joins them into one text (the knowledge the chatbot will answer from) |
 | [chatbot/chatbot.py](chatbot/chatbot.py) | Sahyadri Bank chatbot: answers only from the policy documents, greets customers, refuses privacy requests, remembers the conversation for follow-up questions; type questions, `exit` to quit |
 | [chatbot/chatbot_notes.md](chatbot/chatbot_notes.md) | Week 2 testing notes: non-determinism, first manual test session, 2 defects found and fixed, lessons learned |
+| [chatbot/ragchatbot.py](chatbot/ragchatbot.py) | RAG chatbot: splits the policies into 10 sections, finds the 2 sections that share the most words with the question, and answers only from those; prints which sections it retrieved |
+| [chatbot/RAGBot_notes.md](chatbot/RAGBot_notes.md) | RAG retrieval investigation: 14 golden questions, 12 correct; both failures (TS03, TS19) came from the search, not the LLM ("FD" never matches "Fixed Deposit", plurals don't match, ties favour loan sections) |
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [chatbot_testing/test-scenarios.md](chatbot_testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
 | [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse`, and an `expected_output` for 10 cases (used by GEval) |
@@ -72,6 +74,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **GEval correctness:** write the grading rules in plain English and compare each answer with an `expected_output`; the wrong 15% answer that Answer Relevancy scored 1.00 got 0.0 from GEval; a score is only as strict as the criteria (TS09 passed with "1% of the interest earned" when the policy says "1% on the interest rate")
 - **Judge calibration:** label answers yourself without looking at the judge's scores, then measure agreement; a precise `expected_output` fixed a disagreement that a stricter rubric could not
 - **Fix defects at the source:** the misleading FD penalty answer came from ambiguous policy wording; after fixing the policy, the keyword, expected output, GEval criteria and human label all had to be updated to match the corrected answer
+- **RAG (Retrieval-Augmented Generation):** search the documents first and send only the matching parts to the LLM; a wrong answer can come from the search, so always log what was retrieved
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -103,6 +106,7 @@ cd chatbot && python3 first_llm_call.py
 python3 chatbot/read_policies.py
 python3 chatbot_testing/check_dataset.py
 cd chatbot && python3 chatbot.py   # interactive, type 'exit' to quit
+cd chatbot && python3 ragchatbot.py   # RAG version, shows the retrieved sections
 ```
 
 Run the tests (from inside `python/`, so `checks` can be imported):
