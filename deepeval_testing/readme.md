@@ -13,6 +13,8 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [results/correctness_results.jsonl](results/correctness_results.jsonl) | Saved results of the correctness run: one JSON record per line with the question, answer, expected output, score and the judge's reason |
 | [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
 | [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
+| [test_rag_chatbot.py](test_rag_chatbot.py) | RAG chatbot test: asks `ragchatbot.py` every case with an `expected_output` and scores each answer with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?). Saves results to `results/rag_results.jsonl` |
+| [rag_diagnosis.py](rag_diagnosis.py) | Checks the 4-corner RAG diagnosis table with one case per corner (two of them with hand-written answers), and saves results to `results/rag_diagnosis.jsonl` |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
 ## How to run
@@ -199,3 +201,74 @@ Calibration showed the real root cause was the policy text, so the defect was fi
 4. **Human label updated:** TS09 changed from `fail` to `pass`, because the answer is now correct. The old label described the old answer.
 
 **Result:** all 10 correctness cases pass, TS09 scores 0.8, and judge calibration is 100% (10 / 10). TS09's score is close to the 0.7 pass mark, so it may fail now and then on a rerun.
+
+## RAG chatbot test: recall and faithfulness (23 cases)
+
+[test_rag_chatbot.py](test_rag_chatbot.py) asks the RAG bot ([ragchatbot.py](../chatbot/ragchatbot.py)) all 23 cases with an `expected_output` and scores each answer with two metrics (pass mark 0.7 for both).
+
+**Result: 12 passed, 11 failed** (10 minutes). Not every failure is a defect:
+
+| Group | Cases | What happened |
+|---|---|---|
+| Real retrieval defects | TS03, TS09, TS19 | All FD questions. The FD section was never found ("FD" never matches "Fixed Deposit"), so the bot said "I don't have that information". Recall 0.0, 0.33, 0.0 |
+| Real answer defect | TS30 | Retrieval was fine (the Fees section with ₹750 was found), but the bot still said "I don't have that information" instead of correcting the ₹1,000 premise. The LLM failed, not the search |
+| Real behaviour defect | TS06 | For "What's the rate?" the bot listed personal loan rates instead of asking which product. The full-policy bot asks back correctly |
+| Metric doesn't fit | TS04, TS14, TS20, TS26 | Correct answers, but recall 0.5: conclusions in the expected output like "so a 20-year-old is not eligible yet" are worked out, not written in the policy, so they can't be found in the retrieved text |
+| Metric doesn't fit | TS10 | "Hi" needs no policy, so retrieving nothing is correct, but recall still scores 0 |
+| Not a defect | TS07 | `groq.RateLimitError`: too many API calls |
+
+### Bugs fixed before the first run
+
+- Four wrong auto-added imports (`chatbot.ragchatbot`, `deepeval_testing.calibrate_judge`, `deepeval_testing.test_correctness_chatbot`, and `web_fileresponse` from `aiohttp`). `from ragchatbot import ask_rag_bot` has to come after `sys.path.append`, so Python knows to look in `chatbot/`
+- `with open(...)` without `as file:`, the same bug as in the two earlier test files
+- The venv was not active, so the system Python 3.8 ran pytest and warned "Unknown config option: asyncio_default_fixture_loop_scope"
+
+## RAG diagnosis: recall vs faithfulness
+
+Two metrics together should tell you where a RAG bot breaks:
+
+| Contextual recall | Faithfulness | Diagnosis |
+|---|---|---|
+| High | High | Working well |
+| Low | High | Retrieval problem: fix the librarian (the search) |
+| High | Low | Hallucination: the AI made things up |
+| Low | Low | Both broken |
+
+- **Contextual recall** asks: does the retrieved text contain what's needed for the expected answer?
+- **Faithfulness** asks: does the bot's answer stick to the retrieved text?
+
+To check the table, [rag_diagnosis.py](rag_diagnosis.py) builds one case for each corner. The sections come from the real search (`retrieve()`). The real bot never made anything up, so the two hallucinated answers were written by hand.
+
+| Case | Sections found | Answer | Recall | Faithfulness | Expected diagnosis | Got |
+|---|---|---|---|---|---|---|
+| Home loan rate | Home Loan, Personal Loan | "8.5% per year" (correct) | 1.0 | 1.0 | Working well | **Working well** ✅ |
+| FD rate for a senior citizen | Personal Loan, Home Loan (wrong) | "I'm sorry, I don't have that information." | 0.0 | **0.0** | Retrieval problem | **Both broken** ❌ |
+| Home loan rate | Home Loan, Personal Loan | "8.5% per year, **no processing fee**, and **a free credit card**" (made up) | 1.0 | 0.67 | Hallucination | **Hallucination** ✅ |
+| Withdraw FD on the 3rd day | ATM withdrawal limit (wrong) | "Yes, **at any time with a 2% penalty**" (made up) | 0.0 | **1.0** | Both broken | **Retrieval problem** ❌ |
+
+**2 of 4 matched the table. The 2 that didn't show how Faithfulness really works.**
+
+### Finding 1: Faithfulness only catches claims that contradict the retrieved text
+
+- **Hallucination case (0.67).** The judge caught "no processing fee", because the retrieved Personal Loan section says "Processing fee: 1%". It **missed** "a free credit card": no retrieved section mentions credit cards, so nothing contradicted it. The judge's reason: "the actual output incorrectly states that Sahyadri Bank's personal loan has no processing fee, directly contradicting the retrieval context". It said nothing about the credit card.
+- **Both broken case (1.0).** "Withdraw at any time with a 2% penalty" is completely made up, but the only retrieved section was the ATM limit, which says nothing about FDs. With nothing to contradict it, the judge said "there are no contradictions, indicating perfect faithfulness."
+
+So in DeepEval, **Faithfulness means "not contradicted", not "supported"**. A made-up claim on a topic the retrieved text doesn't cover gets a perfect score. That is most dangerous exactly when retrieval fails, because then the retrieved text covers nothing relevant.
+
+### Finding 2: a refusal has no fixed faithfulness score
+
+The same answer, "I'm sorry, I don't have that information", to the same TS03 question with the same retrieved sections:
+
+- In the [RAG test run](test_rag_chatbot.py): Faithfulness **1.0**
+- In this diagnosis run: Faithfulness **0.0**, because "the actual output incorrectly claims the information is unavailable, yet the retrieval context contains multiple specific details about personal and home loan interest rates"
+
+A refusal makes no factual claim, so the judge has to guess how to score it, and it guessed differently each time. Faithfulness can't reliably say whether a refusal was right.
+
+### What this means for the table
+
+- The table works when the bot **answers** and the retrieved text **covers the topic** (cases 1 and 3).
+- When retrieval fails, a low Faithfulness score is not guaranteed even for a made-up answer, so "Both broken" can look like "Retrieval problem".
+- When the bot **refuses**, Faithfulness is unpredictable, so "Retrieval problem" can look like "Both broken".
+- **Always look at recall first.** If recall is low, the search failed, and Faithfulness alone can't tell you whether the answer is also wrong. Check the answer against `expected_output` too (for example with GEval correctness).
+- **Not every failing test is a defect.** 5 of the 11 RAG failures came from a metric that doesn't fit the case (worked-out conclusions, a greeting that needs no policy). Check whether the bot or the test is wrong before reporting a defect.
+- **Faithfulness means "not contradicted", not "supported".** A made-up answer about a topic the retrieved text doesn't cover scores 1.0, so read recall first.
