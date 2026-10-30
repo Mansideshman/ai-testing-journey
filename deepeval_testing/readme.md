@@ -14,7 +14,7 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
 | [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
 | [test_rag_chatbot.py](test_rag_chatbot.py) | RAG chatbot test: asks `ragchatbot.py` every case with an `expected_output` and scores each answer with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?). Saves results to `results/rag_results.jsonl` |
-| [rag_diagnosis.py](rag_diagnosis.py) | Checks the 4-corner RAG diagnosis table with one case per corner (two of them with hand-written answers), and saves results to `results/rag_diagnosis.jsonl` |
+| [test_rag_diagnosis.py](test_rag_diagnosis.py) | Pytest check of the 4-corner RAG diagnosis table: one test per corner (two of them with hand-written answers). Each test asserts the expected diagnosis, and saves its scores to `results/rag_diagnosis.jsonl` |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
 ## How to run
@@ -237,7 +237,7 @@ Two metrics together should tell you where a RAG bot breaks:
 - **Contextual recall** asks: does the retrieved text contain what's needed for the expected answer?
 - **Faithfulness** asks: does the bot's answer stick to the retrieved text?
 
-To check the table, [rag_diagnosis.py](rag_diagnosis.py) builds one case for each corner. The sections come from the real search (`retrieve()`). The real bot never made anything up, so the two hallucinated answers were written by hand.
+To check the table, I first wrote a script, `rag_diagnosis.py`, with one case for each corner. Its first run is below. The sections come from the real search (`retrieve()`). The real bot never made anything up, so the two hallucinated answers were written by hand.
 
 | Case | Sections found | Answer | Recall | Faithfulness | Expected diagnosis | Got |
 |---|---|---|---|---|---|---|
@@ -264,6 +264,33 @@ The same answer, "I'm sorry, I don't have that information", to the same TS03 qu
 
 A refusal makes no factual claim, so the judge has to guess how to score it, and it guessed differently each time. Faithfulness can't reliably say whether a refusal was right.
 
+### Second run: as a pytest test, with one section per case
+
+I turned the script into [test_rag_diagnosis.py](test_rag_diagnosis.py), with one parametrized test per corner, so each corner passes or fails on its own. The first script asserted inside its loop, so the first mismatch stopped the script and the other cases never ran.
+
+This time each case gets exactly **one** hand-picked section instead of the real search results: Home Loan for the home loan questions, and the credit card Fees section for the FD questions.
+
+```bash
+pytest test_rag_diagnosis.py -v
+```
+
+| Case | Section given | Recall | Faithfulness | Expected diagnosis | Got |
+|---|---|---|---|---|---|
+| Home loan rate | Home Loan | 1.0 | 1.0 | Working well | **Working well** ✅ |
+| FD rate for a senior citizen (refusal) | Card Fees (wrong) | 0.0 | **0.0** | Retrieval problem | **Both broken** ❌ |
+| Home loan rate + "no processing fee" + "free credit card" (made up) | Home Loan | 1.0 | **1.0** | Hallucination | **Working well** ❌ |
+| Withdraw FD on the 3rd day: "any time, 2% penalty" (made up) | Card Fees (wrong) | 0.0 | **1.0** | Both broken | **Retrieval problem** ❌ |
+
+**Only 1 of 4 passed.** Both findings above showed up again, more clearly:
+
+- **The hallucination was missed completely this time.** In the first run the judge caught "no processing fee" only because the Personal Loan section ("Processing fee: 1%") happened to be retrieved too. With only the Home Loan section, neither made-up claim is contradicted, so Faithfulness gave **1.0** and the case looked like "Working well". This confirms Finding 1: the same made-up answer passes or fails depending on which extra sections come along.
+- **The made-up FD answer scored 1.0 again.** The card Fees section says nothing about FDs, so nothing contradicts it.
+- **The refusal scored 0.0 again.** The judge's reason: "the actual output incorrectly states that fee information is unavailable, directly contradicting the retrieval context". The bot never said that. The judge read "I don't have that information" as a claim about the context.
+
+So with DeepEval's Faithfulness and this judge, a confident made-up answer scores 1.0 and an honest "I don't know" scores 0.0. That is the opposite of what the diagnosis table assumes.
+
+Ideas to try next: mark the 3 cases as `xfail` with the judge limit as the reason, and test a GEval "Groundedness" metric that fails any claim the retrieved text does not **support** (not only claims it contradicts).
+
 ### What this means for the table
 
 - The table works when the bot **answers** and the retrieved text **covers the topic** (cases 1 and 3).
@@ -272,3 +299,4 @@ A refusal makes no factual claim, so the judge has to guess how to score it, and
 - **Always look at recall first.** If recall is low, the search failed, and Faithfulness alone can't tell you whether the answer is also wrong. Check the answer against `expected_output` too (for example with GEval correctness).
 - **Not every failing test is a defect.** 5 of the 11 RAG failures came from a metric that doesn't fit the case (worked-out conclusions, a greeting that needs no policy). Check whether the bot or the test is wrong before reporting a defect.
 - **Faithfulness means "not contradicted", not "supported".** A made-up answer about a topic the retrieved text doesn't cover scores 1.0, so read recall first.
+- **A made-up answer's score depends on what else was retrieved.** The same hallucination scored 0.67 with an extra Personal Loan section and 1.0 without it.
