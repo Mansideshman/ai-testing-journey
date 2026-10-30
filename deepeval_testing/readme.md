@@ -14,6 +14,7 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
 | [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
 | [test_rag_chatbot.py](test_rag_chatbot.py) | RAG chatbot test: asks `ragchatbot.py` every case with an `expected_output` and scores each answer with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?). Saves results to `results/rag_results.jsonl` |
+| [test_metamorphic.py](test_metamorphic.py) | Metamorphic test: asks the RAG bot each fact in [metamorphic_cases.json](../chatbot_testing/Data/metamorphic_cases.json) 4 different ways and checks that every answer has the same keyword. Saves results to `results/metamorphic_results.jsonl` |
 | [test_rag_diagnosis.py](test_rag_diagnosis.py) | Pytest check of the 4-corner RAG diagnosis table: one test per corner (two of them with hand-written answers). Each test asserts the expected diagnosis, and saves its scores to `results/rag_diagnosis.jsonl` |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
 
@@ -339,3 +340,39 @@ I tested the diagnosis table with four hand-made cases, one per corner, using fi
 - Cases where Faithfulness passed but Groundedness failed: none so far.
 - **Groundedness is not stable on refusals either.** For the same TS03 refusal with the same sections, run 1 said "the output contains no factual claims… so it is grounded", and run 2 said "'I don't have that information' is a factual claim about the system's knowledge… not supported", even though the criteria say a refusal is grounded. The judge didn't always follow its own criteria.
 - Lesson: on real answers, Groundedness has not yet caught anything Faithfulness missed, because the real bot never invented a fact in these 3 cases. The full 23-case run will show whether it does.
+
+## Metamorphic testing (paraphrase consistency)
+
+[test_metamorphic.py](test_metamorphic.py) asks the RAG bot the same fact in 4 different ways and checks that every answer contains the same keyword. The groups are in [metamorphic_cases.json](../chatbot_testing/Data/metamorphic_cases.json): 5 facts × 4 paraphrases = 20 tests. No judge is needed, so it is cheap to run.
+
+```bash
+pytest test_metamorphic.py -v -s
+```
+
+| Group | Fact | Keyword | Ways of asking |
+|---|---|---|---|
+| MT01 | Home loan rate | `8.5%` | full question, reworded, short "home loan rate?", Hinglish |
+| MT02 | Credit card late fee | `750` | full question, reworded, spelling mistakes, Hinglish |
+| MT03 | Minimum FD amount | `10,000` | "fixed deposit", "FD", reworded, Hinglish |
+| MT04 | Minimum age for a credit card | `21` | full question, "how old", "can an 18 year old", Hinglish |
+| MT05 | Maximum home loan tenure | `30 years` | "maximum tenure", "how many years", reworded, Hinglish |
+
+- Result: **18 / 20 passed**
+- Failures:
+  - **MT03-3** "How little money can I put in a fixed deposit?": "I'm sorry, I don't have that information."
+  - **MT05-3** "What is the longest repayment period for a housing loan?": "I'm sorry, I don't have that information."
+- Pattern: both failures were the **reworded** questions, which use everyday words instead of the policy's words ("little money" for "minimum deposit", "housing" for "home", "longest repayment period" for "maximum tenure"). The short question ("home loan rate?"), spelling mistakes, "FD" and Hinglish all passed.
+- Diagnosis: **retrieval** for both. The LLM never saw the answer.
+
+| Case | Words that matched | Sections tied | Sent to the LLM (top 2) | Needed |
+|---|---|---|---|---|
+| MT03-3 | "fixed", "deposit" (from the policy title only) | Interest Rates, Deposit Amount, Early Withdrawal (2 each) | Interest Rates, Early Withdrawal | Deposit Amount |
+| MT05-3 | "loan" only | Personal Loan, Home Loan, Late EMI Payment (1 each) | Personal Loan, Late EMI Payment | Home Loan |
+
+  Only the title words matched, so every section of that policy file got the same score. The search keeps only the top 2 and breaks ties by sorting the section text backwards, so the right section was dropped by chance. This is the same tie problem that broke TS03 (problem 3 in [RAGBot_notes.md](../chatbot/RAGBot_notes.md)).
+- Fix: not applied yet. The options:
+  - keep every section that ties with the last place, so a tie never drops the right one (fixes both, and TS03)
+  - a synonym list that turns customer words into policy words ("housing" to "home", "longest" to "maximum", "fd" to "fixed deposit")
+  - embeddings, which search by meaning instead of exact words
+- After fix: not run yet.
+- Lesson: customers describe things in their own words, and a word-matching search fails when none of their words appear in the policy. A test that asks the same fact several ways finds this quickly, without a judge.
