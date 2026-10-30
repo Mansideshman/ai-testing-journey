@@ -6,10 +6,7 @@ import pytest
 from deepeval.test_case import LLMTestCase
 from deepeval.metrics import FaithfulnessMetric, ContextualRecallMetric
 from groq_judge import GroqJudge
-from deepeval.metrics import GEval
-from deepeval.test_case import SingleTurnParams
-
-
+from custom_metrics import make_groundedness
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
@@ -26,26 +23,6 @@ judge = GroqJudge("openai/gpt-oss-120b")
 
 RESULTS_FILE = HERE / "results" / "rag_results.jsonl"
 RESULTS_FILE.parent.mkdir(exist_ok=True)
-
-GROUNDEDNESS_CRITERIA = (
-    "Check whether every factual claim in the actual output is directly supported by the retrieval context. "
-    "A claim that is not mentioned in the retrieval context counts as unsupported, even if it does not contradict it. "
-    "If the actual output makes no factual claims (for example, it only says it does not have the information), it is grounded."
-)
-
-
-def make_groundedness(judge, threshold=0.7):
-    return GEval(
-        name="Groundedness",
-        criteria=GROUNDEDNESS_CRITERIA,
-        evaluation_params=[
-            SingleTurnParams.ACTUAL_OUTPUT,
-            SingleTurnParams.RETRIEVAL_CONTEXT
-        ],
-        threshold=threshold,
-        model=judge
-    )
-
 
 @pytest.mark.parametrize("case", WITH_EXPECTED, ids=[c["id"] for c in WITH_EXPECTED])
 def test_rag(case):

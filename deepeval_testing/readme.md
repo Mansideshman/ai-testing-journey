@@ -14,6 +14,7 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
 | [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
 | [test_rag_chatbot.py](test_rag_chatbot.py) | RAG chatbot test: asks `ragchatbot.py` every case with an `expected_output` and scores each answer with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?). Saves results to `results/rag_results.jsonl` |
+| [custom_metrics.py](custom_metrics.py) | Shared custom metrics: `make_groundedness()` builds the GEval Groundedness metric used by both RAG tests |
 | [test_metamorphic.py](test_metamorphic.py) | Metamorphic test: asks the RAG bot each fact in [metamorphic_cases.json](../chatbot_testing/Data/metamorphic_cases.json) 4 different ways and checks that every answer has the same keyword. Saves results to `results/metamorphic_results.jsonl` |
 | [test_rag_diagnosis.py](test_rag_diagnosis.py) | Pytest check of the 4-corner RAG diagnosis table: one test per corner (two of them with hand-written answers). Each test asserts the expected diagnosis, and saves its scores to `results/rag_diagnosis.jsonl` |
 | [pytest.ini](pytest.ini) | Sets `asyncio_default_fixture_loop_scope` to silence a `pytest-asyncio` deprecation warning |
@@ -327,19 +328,24 @@ I tested the diagnosis table with four hand-made cases, one per corner, using fi
 
 ## Groundedness on real RAG chatbot answers
 
-- Added the Groundedness metric to the real chatbot test, [test_rag_chatbot.py](test_rag_chatbot.py). It uses the same criteria as [test_rag_diagnosis.py](test_rag_diagnosis.py), but each file still has its own copy of the criteria; a shared `custom_metrics.py` is not created yet.
-- Results: not complete yet. Only TS01, TS02 and TS03 have been scored so far (run twice), out of 23 cases. The full run needs a fresh Groq daily token limit.
+- Added the shared Groundedness metric ([custom_metrics.py](custom_metrics.py)) to the real chatbot test, [test_rag_chatbot.py](test_rag_chatbot.py). [test_rag_diagnosis.py](test_rag_diagnosis.py) imports the same metric, so both tests always use the same criteria.
+- Results: **10 / 15 passed** Groundedness. The run stopped after TS17, so 15 of the 23 cases were scored (TS01–TS17, without TS05 and TS08, which have no `expected_output`). This run used the old search, before the tie fix below.
 
-| Case | Run | Recall | Faithfulness | Groundedness |
+| Case | Answer | Recall | Faithfulness | Groundedness |
 |---|---|---|---|---|
-| TS01 home loan rate | 1 and 2 | 1.0 | 1.0 | 1.0 |
-| TS02 personal loan rate, self-employed | 1 and 2 | 1.0 | 1.0 | 1.0 |
-| TS03 FD rate, senior citizen (refusal, wrong sections) | 1 | 0.0 | 1.0 | 1.0 |
-| TS03 | 2 | 0.0 | **0.0** | **0.0** |
+| TS01, TS02, TS07, TS11, TS12, TS13 | correct rate, fee, amount or tenure | 1.0 | 1.0 | 1.0 |
+| TS04, TS14 | correct | 0.5 | 1.0 | 1.0 |
+| TS06, TS10 | lists both loan rates / greeting | 0.0 | 1.0 | 1.0 |
+| TS03 | "I don't have that information" (wrong sections) | 0.0 | 0.0 | 0.0 |
+| TS09 | "I don't have that information" (wrong sections) | 0.33 | 1.0 | **0.0** |
+| TS15 | "1% … for a ₹10,00,000 loan it would be ₹10,000" | 1.0 | 1.0 | **0.5** |
+| TS16 | "2.5% … for a ₹4,000 withdrawal the fee would be ₹100" | 1.0 | 1.0 | **0.0** |
+| TS17 | "at least 20%, which is ₹10,00,000" | 1.0 | 1.0 | **0.4** |
 
-- Cases where Faithfulness passed but Groundedness failed: none so far.
-- **Groundedness is not stable on refusals either.** For the same TS03 refusal with the same sections, run 1 said "the output contains no factual claims… so it is grounded", and run 2 said "'I don't have that information' is a factual claim about the system's knowledge… not supported", even though the criteria say a refusal is grounded. The judge didn't always follow its own criteria.
-- Lesson: on real answers, Groundedness has not yet caught anything Faithfulness missed, because the real bot never invented a fact in these 3 cases. The full 23-case run will show whether it does.
+- Cases where Faithfulness passed but Groundedness failed: **TS09, TS15, TS16, TS17**. None of them is a made-up fact:
+  - **TS15, TS16, TS17: correct calculations.** The judge's reason for TS16: "a ₹4,000 withdrawal incurs a ₹100 fee (the context does not state this specific amount, only the rate)". The rate is in the policy and the arithmetic is right, but the result is not written in the context, so Groundedness counts it as unsupported.
+  - **TS09: a refusal.** "The output makes a factual claim that it lacks the requested information, but the retrieval context actually contains relevant loan policy details." The criteria say a refusal is grounded, but the judge didn't follow them. The same happened to TS03 in one earlier run, and not in the other.
+- Lesson: on real answers, Groundedness did **not** catch anything Faithfulness missed. The real bot never invented a fact. Instead, Groundedness wrongly failed 3 correct answers that worked something out, and 1 refusal. It is better than Faithfulness on invented claims (4 / 4 in the diagnosis test), but too strict for answers that calculate. The criteria need a rule like "a value correctly calculated from the context counts as supported".
 
 ## Metamorphic testing (paraphrase consistency)
 
@@ -370,9 +376,10 @@ pytest test_metamorphic.py -v -s
 | MT05-3 | "loan" only | Personal Loan, Home Loan, Late EMI Payment (1 each) | Personal Loan, Late EMI Payment | Home Loan |
 
   Only the title words matched, so every section of that policy file got the same score. The search keeps only the top 2 and breaks ties by sorting the section text backwards, so the right section was dropped by chance. This is the same tie problem that broke TS03 (problem 3 in [RAGBot_notes.md](../chatbot/RAGBot_notes.md)).
-- Fix: not applied yet. The options:
-  - keep every section that ties with the last place, so a tie never drops the right one (fixes both, and TS03)
-  - a synonym list that turns customer words into policy words ("housing" to "home", "longest" to "maximum", "fd" to "fixed deposit")
-  - embeddings, which search by meaning instead of exact words
-- After fix: not run yet.
+- Fix: in `retrieve()` ([ragchatbot.py](../chatbot/ragchatbot.py)), keep **every** section that ties with the last place, instead of cutting at exactly 2. A tie can no longer drop the right section. The other options, not used yet: a synonym list ("housing" to "home", "fd" to "fixed deposit") and embeddings, which search by meaning.
+- After fix: **20 / 20**.
+  - MT03-3 now gets Interest Rates, Early Withdrawal **and Deposit Amount**, and answers ₹10,000. MT05-3 now gets Home Loan too, and answers 30 years.
+  - The first run after the fix was 19 / 20: MT05-4 (Hinglish) answered "Home loan ka maximum tenure 30 साल है।". The fact was right, but "years" was written in Hindi, so the keyword `30 years` didn't match. I changed the keyword to `30`, and the MT05 group passed 4 / 4. That was a test problem, not a bot problem.
+  - The fix also helps TS03: "What FD rate does a senior citizen get for 4 years?" now gets the FD Interest Rates section as well. It does not fix TS19 ("withdraw my FD on the 3rd day"), because no FD section matches any of its words.
+  - Cost of the fix: a tie now sends 3 or 4 sections to the LLM instead of 2, so more tokens and more unrelated text.
 - Lesson: customers describe things in their own words, and a word-matching search fails when none of their words appear in the policy. A test that asks the same fact several ways finds this quickly, without a judge.
