@@ -289,7 +289,30 @@ pytest test_rag_diagnosis.py -v
 
 So with DeepEval's Faithfulness and this judge, a confident made-up answer scores 1.0 and an honest "I don't know" scores 0.0. That is the opposite of what the diagnosis table assumes.
 
-Ideas to try next: mark the 3 cases as `xfail` with the judge limit as the reason, and test a GEval "Groundedness" metric that fails any claim the retrieved text does not **support** (not only claims it contradicts).
+### Finding: Faithfulness only catches contradictions
+
+I tested the diagnosis table with four hand-made cases, one per corner, using fixed retrieval context. Only 1 of 4 was diagnosed correctly with DeepEval's `FaithfulnessMetric`.
+
+| Case | Faithfulness | Judge's reason |
+|---|---|---|
+| Invented "free credit card" (not in context) | 1.0 | "no contradictions" |
+| Invented "2% FD penalty" with a credit card page | 1.0 | "no contradictions" |
+| Refusal "I don't have that information" | 0.0 | read as contradicting the fee details in the context |
+
+- `FaithfulnessMetric` checks that the answer does not **contradict** the context. It does not check that every claim is **supported** by it.
+- A bot can invent facts that are not in the policies and still score 1.0, as long as they don't clash with the retrieved text.
+- Fix: a custom GEval "Groundedness" metric that counts unsupported claims as failures and treats refusals as grounded.
+- Result after the fix: **4 / 4 correct diagnoses** (recall + Groundedness), against 1 / 4 with Faithfulness in the same run.
+
+| Case | Recall | Faithfulness | Groundedness | Diagnosis with Faithfulness | Diagnosis with Groundedness |
+|---|---|---|---|---|---|
+| Correct answer | 1.0 | 1.0 | 1.0 | Working well ✅ | Working well ✅ |
+| Refusal, wrong section | 0.0 | 1.0 | 1.0 | Retrieval problem ✅ | Retrieval problem ✅ |
+| Invented "no processing fee" + "free credit card" | 1.0 | 1.0 | **0.0** | Working well ❌ | Hallucination ✅ |
+| Invented "2% FD penalty", wrong section | 0.0 | 1.0 | **0.0** | Retrieval problem ❌ | Both broken ✅ |
+
+  Groundedness named the problem directly: "the claims about no processing fee and a free credit card are not mentioned in the context, so they are unsupported". The refusal got 1.0 because "there are no claims to verify". This time Faithfulness also gave the refusal 1.0, after 0.0 in the two earlier runs, so it got that case right by chance.
+- Lesson: test the metric before trusting it. A metric's name doesn't tell you exactly what it measures.
 
 ### What this means for the table
 
@@ -300,3 +323,19 @@ Ideas to try next: mark the 3 cases as `xfail` with the judge limit as the reaso
 - **Not every failing test is a defect.** 5 of the 11 RAG failures came from a metric that doesn't fit the case (worked-out conclusions, a greeting that needs no policy). Check whether the bot or the test is wrong before reporting a defect.
 - **Faithfulness means "not contradicted", not "supported".** A made-up answer about a topic the retrieved text doesn't cover scores 1.0, so read recall first.
 - **A made-up answer's score depends on what else was retrieved.** The same hallucination scored 0.67 with an extra Personal Loan section and 1.0 without it.
+
+## Groundedness on real RAG chatbot answers
+
+- Added the Groundedness metric to the real chatbot test, [test_rag_chatbot.py](test_rag_chatbot.py). It uses the same criteria as [test_rag_diagnosis.py](test_rag_diagnosis.py), but each file still has its own copy of the criteria; a shared `custom_metrics.py` is not created yet.
+- Results: not complete yet. Only TS01, TS02 and TS03 have been scored so far (run twice), out of 23 cases. The full run needs a fresh Groq daily token limit.
+
+| Case | Run | Recall | Faithfulness | Groundedness |
+|---|---|---|---|---|
+| TS01 home loan rate | 1 and 2 | 1.0 | 1.0 | 1.0 |
+| TS02 personal loan rate, self-employed | 1 and 2 | 1.0 | 1.0 | 1.0 |
+| TS03 FD rate, senior citizen (refusal, wrong sections) | 1 | 0.0 | 1.0 | 1.0 |
+| TS03 | 2 | 0.0 | **0.0** | **0.0** |
+
+- Cases where Faithfulness passed but Groundedness failed: none so far.
+- **Groundedness is not stable on refusals either.** For the same TS03 refusal with the same sections, run 1 said "the output contains no factual claims… so it is grounded", and run 2 said "'I don't have that information' is a factual claim about the system's knowledge… not supported", even though the criteria say a refusal is grounded. The judge didn't always follow its own criteria.
+- Lesson: on real answers, Groundedness has not yet caught anything Faithfulness missed, because the real bot never invented a fact in these 3 cases. The full 23-case run will show whether it does.
