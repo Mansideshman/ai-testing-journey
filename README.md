@@ -27,6 +27,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [chatbot/data/policies/](chatbot/data/policies/) | Fictional Sahyadri Bank policies: [loans](chatbot/data/policies/loans.md), [credit cards](chatbot/data/policies/credit_cards.md), [fixed deposits](chatbot/data/policies/fixed_deposits.md) |
 | [chatbot_testing/test-scenarios.md](chatbot_testing/test-scenarios.md) | 30 test scenarios for the chatbot with expected behaviour, across happy path, conditions, calculations, exceptions, out of scope, unclear, spelling, multi-turn, safety, and tricky questions |
 | [chatbot_testing/Data/goldentestdata.json](chatbot_testing/Data/goldentestdata.json) | Golden dataset: the 30 test scenarios as JSON, each with `id`, `category`, `question`, `expected_keywords`, `should_refuse`, and an `expected_output` for 23 answerable cases (used by GEval and the RAG tests) |
+| [chatbot_testing/Data/metamorphic_cases.json](chatbot_testing/Data/metamorphic_cases.json) | Metamorphic test data: 5 facts, each with a keyword and 4 different ways to ask for it |
 | [chatbot_testing/check_dataset.py](chatbot_testing/check_dataset.py) | Checks the golden dataset: total cases, count per category, and any missing required fields |
 | [chatbot_testing/test_chatbot_golden.py](chatbot_testing/test_chatbot_golden.py) | Automated chatbot tests: asks the real bot every golden dataset question (replaying `history` for multi-turn cases), checks expected keywords or a refusal |
 | [chatbot_testing/reports/failed_tests_demo.md](chatbot_testing/reports/failed_tests_demo.md) | Failed test record: two golden cases broken on purpose (TS01 expects a refusal, TS02 expects the wrong rate), the raw pytest output, and how to read a failure and decide whether the bot or the test data is wrong |
@@ -38,6 +39,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 | [deepeval_testing/calibrate_judge.py](deepeval_testing/calibrate_judge.py) | Judge calibration: compares the GEval judge's pass/fail verdicts with my own labels in [human_labels.json](deepeval_testing/human_labels.json) (90% agreement, then 100% after making TS09's expected output precise) |
 | [deepeval_testing/test_rag_chatbot.py](deepeval_testing/test_rag_chatbot.py) | RAG chatbot test with `ContextualRecallMetric` (did the search find the right sections?), `FaithfulnessMetric` (did the answer stick to them?) and a custom Groundedness metric (is every claim supported?): 12/23 passed before Groundedness was added; the real failures were FD retrieval (TS03, TS09, TS19), an unhelpful answer despite good retrieval (TS30) and a missing clarifying question (TS06) |
 | [deepeval_testing/test_rag_diagnosis.py](deepeval_testing/test_rag_diagnosis.py) | Pytest check of the recall vs faithfulness diagnosis table, one test per corner: 2 of 4 matched in the first run and 1 of 4 in the second, because Faithfulness only catches claims that contradict the retrieved text, and it scores a refusal 0.0. With a custom GEval Groundedness metric instead, 4 of 4 matched |
+| [deepeval_testing/test_metamorphic.py](deepeval_testing/test_metamorphic.py) | Metamorphic test: the same fact asked 4 ways must give the same keyword. 18/20 passed; both failures were reworded questions where the search dropped the right section in a tie |
 | [JSON/testcases.json](JSON/testcases.json) | Golden dataset: test cases with `id`, `question`, `expected_keyword`, `category` |
 | [JSON/fake_answers.json](JSON/fake_answers.json) | Fake chatbot answers, keyed by test case id |
 | [JSON/results.json](JSON/results.json) | Results written by `case_runner.py` and `readjson.py` |
@@ -79,6 +81,7 @@ It starts with Python basics, then moves on to testing a real LLM chatbot.
 - **RAG (Retrieval-Augmented Generation):** search the documents first and send only the matching parts to the LLM; a wrong answer can come from the search, so always log what was retrieved
 - **Recall vs faithfulness:** low contextual recall means the search failed; faithfulness only catches claims that contradict the retrieved text, so a made-up answer about a topic the retrieved text doesn't cover still scores 1.0, and refusals get random scores
 - **Test the metric before trusting it:** with hand-made cases, one per corner of the diagnosis table, `FaithfulnessMetric` diagnosed only 1 of 4 correctly. A metric's name doesn't tell you exactly what it measures; a custom GEval "Groundedness" metric that fails unsupported claims and treats refusals as grounded diagnosed 4 of 4 correctly, though on a real refusal it still gave 1.0 in one run and 0.0 in the next
+- **Metamorphic testing:** ask the same fact in different ways and check the answers agree. It needs no expected answer and no judge, and it found 2 questions where everyday wording ("housing loan", "little money") made the search miss the right section
 - **API keys:** kept in a `.env` file (ignored by git) and loaded with `python-dotenv`, never written in code
 
 ## Setup
@@ -138,6 +141,7 @@ pytest test_correctness_chatbot.py -v -s             # GEval facts check, about 
 python calibrate_judge.py                            # compare the judge with human labels
 pytest test_rag_chatbot.py -v -s                     # RAG bot: recall, faithfulness and groundedness, about 10 minutes
 pytest test_rag_diagnosis.py -v                      # one test per corner of the diagnosis table
+pytest test_metamorphic.py -v -s                     # same fact asked 4 ways, no judge needed
 ```
 
 If you see `ModuleNotFoundError: No module named 'groq'`, the venv is not active: run `source .venv/bin/activate` first.

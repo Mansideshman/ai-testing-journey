@@ -1,0 +1,57 @@
+[
+    {
+        "id": "MT01",
+        "fact": "Home loan interest rate",
+        "keyword": "8.5%",
+        "paraphrases": [
+            "What is the home loan interest rate?",
+            "How much interest do you charge on a home loan?",
+            "home loan rate?",
+            "Home loan ka interest rate kya hai?"
+        ]
+    },
+    {
+        "id": "MT02",
+        "fact": "Credit card late payment fee",
+        "keyword": "750",
+        "paraphrases": [
+            "What is the late payment fee on a credit card?",
+            "How much will I be charged if I pay my credit card bill late?",
+            "wat is late fee on credit card",
+            "Credit card bill late bharne par kitna fee lagta hai?"
+        ]
+    },
+    {
+        "id": "MT03",
+        "fact": "Minimum fixed deposit amount",
+        "keyword": "10,000",
+        "paraphrases": [
+            "What is the minimum amount for a fixed deposit?",
+            "What is the minimum FD amount?",
+            "How little money can I put in a fixed deposit?",
+            "FD ka minimum amount kitna hai?"
+        ]
+    },
+    {
+        "id": "MT04",
+        "fact": "Minimum age for a credit card",
+        "keyword": "21",
+        "paraphrases": [
+            "What is the minimum age to get a credit card?",
+            "How old do I need to be for a credit card?",
+            "Can an 18 year old apply for a credit card?",
+            "Credit card ke liye minimum age kya hai?"
+        ]
+    },
+    {
+        "id": "MT05",
+        "fact": "Maximum home loan tenure",
+        "keyword": "30 years",
+        "paraphrases": [
+            "What is the maximum tenure for a home loan?",
+            "For how many years can I take a home loan?",
+            "What is the longest repayment period for a housing loan?",
+            "Home loan kitne saal ke liye milta hai?"
+        ]
+    }
+]
