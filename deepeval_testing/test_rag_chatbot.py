@@ -6,10 +6,15 @@ import pytest
 from deepeval.test_case import LLMTestCase
 from deepeval.metrics import FaithfulnessMetric, ContextualRecallMetric
 from groq_judge import GroqJudge
+from deepeval.metrics import GEval
+from deepeval.test_case import SingleTurnParams
+
+
 
 HERE = Path(__file__).parent
 ROOT = HERE.parent
 sys.path.append(str(ROOT / "chatbot"))
+
 from ragchatbot import ask_rag_bot
 
 with open(ROOT /"chatbot_testing" / "Data" / "goldentestdata.json") as file:
@@ -21,6 +26,26 @@ judge = GroqJudge("openai/gpt-oss-120b")
 
 RESULTS_FILE = HERE / "results" / "rag_results.jsonl"
 RESULTS_FILE.parent.mkdir(exist_ok=True)
+
+GROUNDEDNESS_CRITERIA = (
+    "Check whether every factual claim in the actual output is directly supported by the retrieval context. "
+    "A claim that is not mentioned in the retrieval context counts as unsupported, even if it does not contradict it. "
+    "If the actual output makes no factual claims (for example, it only says it does not have the information), it is grounded."
+)
+
+
+def make_groundedness(judge, threshold=0.7):
+    return GEval(
+        name="Groundedness",
+        criteria=GROUNDEDNESS_CRITERIA,
+        evaluation_params=[
+            SingleTurnParams.ACTUAL_OUTPUT,
+            SingleTurnParams.RETRIEVAL_CONTEXT
+        ],
+        threshold=threshold,
+        model=judge
+    )
+
 
 @pytest.mark.parametrize("case", WITH_EXPECTED, ids=[c["id"] for c in WITH_EXPECTED])
 def test_rag(case):
@@ -40,8 +65,11 @@ def test_rag(case):
 
     faithfulness = FaithfulnessMetric(threshold=0.7, model=judge)
     recall = ContextualRecallMetric(threshold=0.7, model=judge)
+    groundedness = make_groundedness(judge)
+
     faithfulness.measure(test_case)
     recall.measure(test_case)
+    groundedness.measure(test_case)
 
     headings = [chunk.split("\n")[1] for chunk in retrieved]
 
@@ -54,17 +82,16 @@ def test_rag(case):
             "faithfulness": faithfulness.score,
             "faithfulness_reason":faithfulness.reason,
             "recall": recall.score,
-            "recall_reason": recall.reason
+            "recall_reason": recall.reason,
+            "groundedness": groundedness.score,
+            "groundedness_reason": groundedness.reason
         }
         file.write(json.dumps(record)+ "\n")
 
     print("\nQuestion:", case["question"])
     print("Retrieved:", headings)
     print("Answer:",answer)
-    print("Faithfulness:", faithfulness.score, "| Recall:",recall.score)
-
+    print("Faithfulness:", faithfulness.score, "| Recall:",recall.score, "| Groundedness:", groundedness.score)
     assert recall.score >= 0.7, f"Retrieval problem ({recall.score}): {recall.reason}"
+    assert groundedness.score >= 0.7, f"Not grounded ({groundedness.score}): {groundedness.reason}"
     assert faithfulness.score >= 0.7, f"Not faithful ({faithfulness.score}):{faithfulness.reason}"
-
-
-    
