@@ -2,9 +2,10 @@ import json
 import time
 import pytest
 from pathlib import Path
-from deepeval.test_case import LLMTestCase, SingleTurnParams
-from deepeval.metrics import FaithfulnessMetric, ContextualRecallMetric, GEval
+from deepeval.test_case import LLMTestCase
+from deepeval.metrics import FaithfulnessMetric, ContextualRecallMetric
 from groq_judge import GroqJudge
+from custom_metrics import make_groundedness
 
 HERE = Path(__file__).parent
 RESULTS_FILE = HERE / "results" / "rag_diagnosis.jsonl"
@@ -22,14 +23,6 @@ CARD_FEES_PAGE = """Sahyadri Bank – Credit Card Policy
 - Annual fee: ₹500 (waived if you spend ₹50,000 or more in a year)
 - Late payment fee: ₹750
 - Cash withdrawal fee: 2.5% of the amount"""
-
-# Faithfulness only fails claims that contradict the context.
-# Groundedness also fails claims the context does not support.
-GROUNDEDNESS_CRITERIA = (
-    "Check whether every factual claim in the actual output is directly supported by the retrieval context. "
-    "A claim that is not mentioned in the retrieval context counts as unsupported, even if it does not contradict it. "
-    "If the actual output makes no factual claims (for example, it only says it does not have the information), it is grounded."
-)
 
 judge = GroqJudge("openai/gpt-oss-120b")
 
@@ -90,16 +83,7 @@ def test_diagnosis(case):
     )
     recall = ContextualRecallMetric(threshold=PASS_MARK, model=judge)
     faithfulness = FaithfulnessMetric(threshold=PASS_MARK, model=judge)
-    groundedness = GEval(
-        name="Groundedness",
-        criteria=GROUNDEDNESS_CRITERIA,
-        evaluation_params=[
-            SingleTurnParams.ACTUAL_OUTPUT,
-            SingleTurnParams.RETRIEVAL_CONTEXT
-        ],
-        threshold=PASS_MARK,
-        model=judge
-    )
+    groundedness = make_groundedness(judge, PASS_MARK)
     recall.measure(test_case)
     faithfulness.measure(test_case)
     groundedness.measure(test_case)

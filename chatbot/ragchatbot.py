@@ -49,9 +49,13 @@ def retrieve(question, top_k=2):
         overlap = len(question_words & get_words(chunk))
         scored.append((overlap, chunk))
     scored.sort(reverse=True)
+    if not scored or scored[0][0] == 0:
+        return []
+    # Keep every section that ties with the last place, so a tie never drops the right one
+    cutoff = scored[min(top_k, len(scored)) - 1][0]
     best = []
-    for score, chunk in scored[:top_k]:
-        if score > 0:
+    for score, chunk in scored:
+        if score >= cutoff and score > 0:
             best.append(chunk)
     return best
 

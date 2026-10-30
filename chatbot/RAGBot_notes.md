@@ -43,7 +43,7 @@ The two wrong answers were not the LLM's fault. The search never found the right
 
 **2. It doesn't understand plurals or similar words.** "withdraw" and "withdrawal" count as different words, and so do "day" and "days", "rate" and "rates", "citizen" and "citizens". In TS19, the Early Withdrawal section, which had the answer, scored zero. The only match was the word "day" in the credit card ATM section ("₹40,000 per day"), which has nothing to do with FDs.
 
-**3. When sections tie, loans always win.** In TS03, three sections had the same score: Personal Loan, Home Loan, and the FD Interest Rates section that had the answer. The code breaks ties by sorting the section text, and because of how the file titles sort, loan sections always come first. The FD section was pushed out of the top 2.
+**3. When sections tie, loans always win.** In TS03, three sections had the same score: Personal Loan, Home Loan, and the FD Interest Rates section that had the answer. The code breaks ties by sorting the section text, and because of how the file titles sort, loan sections always come first. The FD section was pushed out of the top 2. **Fixed:** `retrieve()` now keeps every section that ties with the last place, so TS03 gets the FD Interest Rates section too (found by the metamorphic test in `deepeval_testing`).
 
 **4. Some right answers were just luck.** In TS28, the Personal Loan and Deposit Amount sections tied. The answer was right only because the bot takes 2 sections. If it took only 1, it would have picked Personal Loan and got it wrong.
 
