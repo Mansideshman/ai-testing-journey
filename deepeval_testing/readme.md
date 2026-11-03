@@ -12,7 +12,8 @@ First steps with [DeepEval](https://deepeval.com): using an LLM as a judge to sc
 | [test_correctness_chatbot.py](test_correctness_chatbot.py) | GEval "Correctness" test: asks the real chatbot every golden dataset case that has an `expected_output` and checks that the facts match. Saves each result to `results/correctness_results.jsonl` |
 | [results/correctness_results.jsonl](results/correctness_results.jsonl) | Saved results of the correctness run: one JSON record per line with the question, answer, expected output, score and the judge's reason |
 | [calibrate_judge.py](calibrate_judge.py) | Compares the judge's pass/fail verdicts (latest score per case from `results/correctness_results.jsonl`, pass mark 0.7) with human labels, and prints the agreement rate and every disagreement |
-| [human_labels.json](human_labels.json) | My own pass/fail label for each of the 10 correctness cases, made without looking at the judge's scores |
+| [human_labels.json](human_labels.json) | Pass/fail labels for the 23 correctness cases: TS01–TS12 labelled by me without looking at the judge's scores, and TS13–TS30 labelled by Claude against the policy files (see "Fresh sample") |
+| [show_answers.py](show_answers.py) | Prints each correctness answer that has no label yet, with its question and expected output but no score, so labels can be made blind |
 | [test_rag_chatbot.py](test_rag_chatbot.py) | RAG chatbot test: asks `ragchatbot.py` every case with an `expected_output` and scores each answer with `ContextualRecallMetric` (did the search find the right sections?) and `FaithfulnessMetric` (did the answer stick to them?). Saves results to `results/rag_results.jsonl` |
 | [custom_metrics.py](custom_metrics.py) | Shared custom metrics: `make_groundedness()` builds the GEval Groundedness metric used by both RAG tests |
 | [test_metamorphic.py](test_metamorphic.py) | Metamorphic test: asks the RAG bot each fact in [metamorphic_cases.json](../chatbot_testing/Data/metamorphic_cases.json) 4 different ways and checks that every answer has the same keyword. Saves results to `results/metamorphic_results.jsonl` |
@@ -175,6 +176,23 @@ An AI judge's scores can't be trusted until they are checked against a human. I 
   2. Made TS09's `expected_output` precise: "The FD early withdrawal penalty is 1%, not 5%. It lowers the FD interest rate by 1 percentage point (for example, 7% becomes 6%). It is not 1% of the interest earned." **This worked.** TS09 now scores 0.2 and fails, with the reason "incorrectly states that the penalty is 1% of the interest earned".
 - **Root cause:** the policy wording "penalty of 1% on the interest rate" in [fixed_deposits.md](../chatbot/data/policies/fixed_deposits.md) is ambiguous. Both the bot and the judge read it the way a customer might. This is a defect in the policy text, not only in the bot.
 - **Lesson:** an AI judge must be checked against human judgement before its scores can be trusted. All 10 tests passed while one answer could mislead a customer, and only human review found it. A judge is only as precise as the reference it compares against: a clear expected output worked where a stricter rubric did not.
+
+### Fresh sample: 13 new cases
+
+To check the judge on cases it had never been tuned for, I added an `expected_output` to the other 13 answerable cases (TS13–TS20, TS25–TS28, TS30) and ran the correctness test again with its output hidden. [show_answers.py](show_answers.py) prints each new answer with its question and expected output, but no score, so the labels can be made blind.
+
+```bash
+pytest test_correctness_chatbot.py -q > /dev/null   # run blind
+python show_answers.py                              # read answers, no scores
+python calibrate_judge.py
+```
+
+- **Who labelled them:** I asked Claude to label these 13, not me. It checked each answer against the policy files without seeing the judge's scores or reasons. It did see that the test run finished with exit code 0, which means every case passed. So these labels are **not fully blind** and **not human**. They are a second reviewer's labels, and this calibration measures agreement between two AI reviewers, not between the judge and a human.
+- **Labels:** all 13 "pass". Every answer gave the right number for the right thing: calculations (TS15 ₹10,000, TS16 ₹100, TS17 ₹10,00,000, TS18 ₹400), eligibility (TS14 age 21, TS26 income ₹25,000), a follow-up question (TS25), spelling mistakes (TS27), Hinglish (TS28), and a false fact corrected without promising anything the policy doesn't say (TS30).
+- **Judge scores:** 1.0 for all 13.
+- **Agreement:** **100% (23 / 23)**, the original 10 plus the 13 new ones. No disagreements.
+- **What this does and doesn't show:** the judge didn't fail any correct answer, so it is not too strict on these cases. But there was no wrong answer in the sample, so it says nothing about whether the judge is too lenient. TS09 showed that is the real risk. A better sample would include some wrong answers on purpose.
+- **Lesson:** a 100% agreement rate on a sample with only passing answers is weaker than it looks. Calibration needs both good and bad answers, and the labels should come from a human who hasn't seen the results.
 
 ## Policy fix: TS09 before and after
 
