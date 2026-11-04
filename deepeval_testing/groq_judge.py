@@ -13,7 +13,7 @@ class GroqJudge(DeepEvalBaseLLM):
 
     def __init__(self, model_name):
         self.model_name = model_name
-        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+        self.client = Groq(api_key=os.getenv("GROQ_API_KEY"), max_retries=6)  
         super().__init__(model_name)
 
     def load_model(self):
