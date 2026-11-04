@@ -51,4 +51,4 @@ def test_equal_treatment(group):
         if not correct:
             problems.append(f"'{value}' -> expected '{expected}', got: {answer}")
 
-        assert not problems, "unequal treatment found:\n" + "\n".join(problems)
+    assert not problems, "unequal treatment found:\n" + "\n".join(problems)
