@@ -39,15 +39,15 @@ The two wrong answers were not the LLM's fault. The search never found the right
 
 ## Problems I found with the search
 
-**1. It doesn't know that "FD" means "Fixed Deposit".** Customers write "FD", but the policy file says "Fixed Deposit". The search only matches exact words, so "FD" never matches anything. This broke both TS03 and TS19.
+**1. It doesn't know that "FD" means "Fixed Deposit".** Customers write "FD", but the policy file says "Fixed Deposit". The search only matches exact words, so "FD" never matches anything. This broke both TS03 and TS19. **Fixed:** a `SYNONYMS` list now maps "fd" to "fixed deposit" before matching.
 
-**2. It doesn't understand plurals or similar words.** "withdraw" and "withdrawal" count as different words, and so do "day" and "days", "rate" and "rates", "citizen" and "citizens". In TS19, the Early Withdrawal section, which had the answer, scored zero. The only match was the word "day" in the credit card ATM section ("₹40,000 per day"), which has nothing to do with FDs.
+**2. It doesn't understand plurals or similar words.** "withdraw" and "withdrawal" count as different words, and so do "day" and "days", "rate" and "rates", "citizen" and "citizens". In TS19, the Early Withdrawal section, which had the answer, scored zero. The only match was the word "day" in the credit card ATM section ("₹40,000 per day"), which has nothing to do with FDs. **Fixed for the words that broke tests:** `SYNONYMS` also maps "withdraw" to "withdrawal", "day" to "days", "rate" to "rates" and a few others. TS19 now finds the Early Withdrawal section first.
 
 **3. When sections tie, loans always win.** In TS03, three sections had the same score: Personal Loan, Home Loan, and the FD Interest Rates section that had the answer. The code breaks ties by sorting the section text, and because of how the file titles sort, loan sections always come first. The FD section was pushed out of the top 2. **Fixed:** `retrieve()` now keeps every section that ties with the last place, so TS03 gets the FD Interest Rates section too (found by the metamorphic test in `deepeval_testing`).
 
 **4. Some right answers were just luck.** In TS28, the Personal Loan and Deposit Amount sections tied. The answer was right only because the bot takes 2 sections. If it took only 1, it would have picked Personal Loan and got it wrong.
 
-**5. It forgets the conversation when searching.** The search only looks at the latest question, not the earlier messages. TS25 worked because "maximum tenure" happens to match the Home Loan section. A follow-up like "And what about for self-employed?" would be searched without the words "personal loan", and could find the wrong section.
+**5. It forgets the conversation when searching.** The search only looks at the latest question, not the earlier messages. TS25 worked because "maximum tenure" happens to match the Home Loan section. A follow-up like "And what about for self-employed?" would be searched without the words "personal loan", and could find the wrong section. **Fixed:** `ask_rag_bot` now searches with the previous question plus the current one. After "What is the processing fee on a personal loan?", the follow-up "And the interest rate?" now finds only the loan sections, instead of 4 sections including FD Interest Rates.
 
 **6. An unrelated section almost always comes along.** Because it always takes 2 sections, most answers also got one that had nothing to do with the question, like Home Loan for a credit card question. The LLM ignored it this time, but extra unrelated text gives it more chances to mix up facts.
 
