@@ -6,7 +6,7 @@ from groq import Groq
 
 HERE = Path(__file__).parent
 load_dotenv(HERE / ".env")
-client = Groq(api_key=os.getenv("GROQ_API_KEY"), max_retries=6)  
+client = Groq(api_key=os.getenv("GROQ_API_KEY"), max_retries=6)  # wait and retry when the per-minute token limit is hit
 MODEL = "openai/gpt-oss-120b"
 
 SIMULATE_TOOL_FAILURE = False
