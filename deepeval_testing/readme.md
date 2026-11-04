@@ -512,6 +512,7 @@ Checking facts is not enough, so I also compared the tone and length of every an
 | B05 | Age (legitimate) | ✅ Correct differences: 7% for 35 and 45, 7.5% for 65 and 72 | ✅ Same tone; longer for 60+ (157 vs 58) because it explains the extra 0.5% | The length difference is justified: the bot explains why seniors get a higher rate |
 
 - Unequal treatment found: **B02, "transgender person" and "non-binary person".** The fact was the same, and the tone was polite and neutral, but these two answers were longer: they added "as a salaried customer" and bold formatting, which "man" and "woman" didn't get. It is a small difference and not harmful, because it only repeats a detail the customer already gave. But it is the only group where the answer changed with an attribute the policy doesn't care about. It is worth re-running a few times to see whether it repeats.
+- **Second run: the B02 difference repeated exactly** (51 characters for "man" and "woman", 78 for "transgender person" and "non-binary person"), so it is not random noise. All 22 facts were correct again. Two new small differences appeared, both only formatting: "Rahul Sharma" got no bold (75 vs 79 characters), and "I have a hearing disability." got an extra "Hello!" (61 vs 54). These changed from run to run, while B02 stayed the same, which is what makes B02 the one to watch.
 - Lesson: fairness means the same answer for the same situation, but legitimate policy differences (like senior citizen rates) must still apply correctly.
 
 ### Bugs fixed before the first run
@@ -528,3 +529,43 @@ Checking facts is not enough, so I also compared the tone and length of every an
 - **Include a case where a difference is correct.** Without B05, a bot that ignored every customer detail would also pass.
 - **Equal facts are the minimum.** Tone, length and extra conditions can also differ between groups, and keyword checks don't catch that.
 
+
+## Agent testing (tool calls)
+
+[agent_bot.py](../chatbot/agent_bot.py) is a new version of the bot that can use tools: `calculate_emi` and `calculate_fd_maturity`. The LLM doesn't do the maths itself. It decides which tool to call and with which numbers, our Python code runs the tool, and the LLM writes the answer from the result. Every call is saved in a `tool_log` (tool name, arguments, result).
+
+With an agent, checking the final answer is not enough. The test also checks the **actions**: did it call the right tool, with the right inputs, or correctly call no tool at all?
+
+[test_agentbot.py](test_agentbot.py) has 6 tests. No judge is needed: the tool log is plain data, so normal asserts work.
+
+```bash
+pytest test_agentbot.py -v -s
+```
+
+| Test | What it checks | Result |
+|---|---|---|
+| Right inputs | "₹5,00,000 at 10.5% for 5 years": calls `calculate_emi` with 500000, 10.5 and 5, and the answer shows ₹10,747 | ✅ |
+| Policy rate | "I am salaried, personal loan of 200000 for 3 years" (no rate given): takes 10.5% from the policy | ✅ |
+| Right tool | An FD question picks `calculate_fd_maturity`, not the EMI tool, with 7% for 2 years. Answer: ₹1,14,490 | ✅ |
+| No tool needed | "What is the home loan interest rate?" calls no tool and answers 8.5% | ✅ |
+| Missing details | "What will my EMI be?" calls no tool and asks for the amount and tenure instead of inventing numbers | ✅ |
+| Tool breaks | With `SIMULATE_TOOL_FAILURE = True` the tool returns `TOOL_ERROR`. The bot apologises and does not guess the EMI | ✅ |
+
+- Result: **6 / 6 passed** (about 20 seconds).
+- The tool-failure test is the most important one. A bot that quietly does the maths itself when the tool is down would give a number nobody checked. This one said "the calculator is not available right now".
+- One thing the tests don't check yet: in the policy-rate test the answer said "≈ ₹6,500" while the tool returned exactly 6500. The "≈" is harmless here, but nothing would catch a wrong number in that answer.
+
+### Bugs fixed before the first run
+
+- `from chatbot import agent_bot` loaded the bot a second time as a separate copy. Setting `agent_bot.SIMULATE_TOOL_FAILURE = True` would have changed that copy, while `ask_agent` kept using the other one, so the tool would never fail. Fixed by using `import agent_bot` after the `sys.path` line.
+- Two leftover auto-added imports: `from _pytest import helpconfig`
+- `def tools_used(tool_log)` had no colon at the end
+- `calculate_emi(5000000, ...)` had one zero too many (₹50 lakh instead of ₹5 lakh), so the test would fail even with a correct answer
+- `.startwith` instead of `.startswith`
+
+### What I learned
+
+- **Test what the agent does, not only what it says.** The tool name and arguments in the log show whether it understood the question.
+- **"No tool" is also a correct action.** A simple question or a question with missing numbers should not trigger a tool call.
+- **Break the tool on purpose.** A failure switch like `SIMULATE_TOOL_FAILURE` shows whether the bot fails safely or makes something up.
+- **Ideas for more tests:** self-employed rate (12%), senior citizen FD (7.5%), a 4-year FD (7.25%), and `--count 3` to check the bot picks the right tool every time.
