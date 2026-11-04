@@ -21,13 +21,13 @@ jobs:
       - name: Run correctness evaluation
         run: pytest deepeval_testing/test_correctness_chatbot.py -v
   safety:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -35,5 +35,5 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run red-team and bias tests
-        run: pytest deepeval_testing/test_red_team.py deepeval_testing/test_bias.py -v
+        run: pytest deepeval_testing/test_redteam.py deepeval_testing/test_bias.py -v
 
